@@ -1,0 +1,10 @@
+{
+  "name": "check-linked-issues-action",
+  "version": "1.0.0",
+  "description": "GitHub action to check if pull requests have their corresponding issues.",
+  "author": {
+    "name": "NearForm",
+    "email": "oss@nearform.com"
+  },
+  "license": "MIT"
+}
