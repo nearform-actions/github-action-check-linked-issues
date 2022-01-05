@@ -1,0 +1,20 @@
+name: 'Check linked issues'
+
+description: 'Check if pull requests have their corresponding issues.'
+
+branding:
+  icon: "check-square"
+  color: "green"
+
+inputs:
+  github-token:
+    description: "Your Github token, it's already available to your Github action."
+    required: true
+
+outputs:
+  linked_issues_count:
+    description: 'The total number of issues linked to your pull request.'
+
+runs:
+  using: 'node16'
+  main: 'dist/index.js'

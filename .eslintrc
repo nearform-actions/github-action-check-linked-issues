@@ -1,0 +1,20 @@
+{
+  "plugins": ["jest"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:prettier/recommended",
+    "plugin:jest/recommended"
+  ],
+  "env": {
+    "node": true,
+    "es6": true,
+    "jest/globals": true
+  },
+  "parserOptions": {
+    "sourceType": "module",
+    "ecmaVersion": 2020
+  },
+  "rules": {
+    "strict": ["error", "global"]
+  }
+}
