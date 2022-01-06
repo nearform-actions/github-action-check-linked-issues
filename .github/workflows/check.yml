@@ -7,6 +7,7 @@ on:
       - "dependabot"
       # Exclude branches matching refs/heads/releases/
       - "releases"
+      - "release/*"
 jobs:
   check_pull_requests:
     runs-on: ubuntu-latest
