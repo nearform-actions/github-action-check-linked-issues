@@ -10,6 +10,10 @@ inputs:
   github-token:
     description: "Your Github token, it's already available to your Github action."
     required: true
+  exclude-branches:
+    description: "A comma-separated list of patterns to ignore source branches. (Any pattern supported by `minimatch`)"
+    required: false
+    default: ""
 
 outputs:
   linked_issues_count:
