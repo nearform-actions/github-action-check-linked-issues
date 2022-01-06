@@ -9727,21 +9727,22 @@ function shouldRun() {
 
   const sourceBranch = github.context.payload.pull_request.head.ref;
 
-  return !excludeBranches.some((p) => minimatch(sourceBranch, p));
+  const result = excludeBranches.some((p) => minimatch(sourceBranch, p));
+
+  if (result) {
+    core.notice("source branch matched the exclude pattern, exiting...");
+  }
+
+  return !result;
 }
 
 ;// CONCATENATED MODULE: ./src/index.js
 
 
 
-
-
-if (!shouldRun()) {
-  core.notice("source branch matched the exclude pattern, exiting...");
-  process.exit();
+if (shouldRun()) {
+  run();
 }
-
-run();
 
 })();
 
