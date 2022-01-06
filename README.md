@@ -35,10 +35,6 @@ Configure a workflow to run a job on these `pull_request` events:
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
-    branches-ignore:
-      # OPTIONAL: Exclude branches matching some patterns
-      - "dependabot"
-      - "releases"
 
 jobs:
   check_pull_requests:
@@ -49,9 +45,10 @@ jobs:
         id: check-linked-issues
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          exclude-branches: "release/**, dependabot/**"
       # OPTIONAL: Use the output from the `check-linked-issues` step
       - name: Get the output
         run: echo "How many linked issues? ${{ steps.check-linked-issues.outputs.linked_issues_count }}"
 ```
 
-When the action cannot find any linked issues it will throw an error explaining the reason.
+When the action cannot find any linked issues it will fail explaining the reason.
