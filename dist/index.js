@@ -9711,10 +9711,17 @@ var minimatch = __nccwpck_require__(3973);
 
 
 
+function parseCSV(value) {
+  if (value.trim() === "") return [];
+  return value.split(",").map((p) => p.trim());
+}
+
 function shouldRun() {
-  const excludeBranches = core.getInput("exclude-branches", { required: false })
-    .split(",")
-    .map((p) => p.trim());
+  const excludeBranches = parseCSV(
+    core.getInput("exclude-branches", {
+      required: false,
+    })
+  );
 
   if (!excludeBranches.length) return true;
 
@@ -9727,9 +9734,14 @@ function shouldRun() {
 
 
 
-if (shouldRun()) {
-  run();
+
+
+if (!shouldRun()) {
+  core.notice("source branch matched the exclude pattern, exiting...");
+  process.exit();
 }
+
+run();
 
 })();
 
