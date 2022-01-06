@@ -1,0 +1,26 @@
+name: Check linked issues
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches-ignore:
+      # Exclude branches matching refs/heads/dependabot
+      - "dependabot"
+      # Exclude branches matching refs/heads/releases/
+      - "releases"
+jobs:
+  check_pull_requests:
+    runs-on: ubuntu-latest
+    name: Check
+    steps:
+      # To use this repository's private action,
+      # you must check out the repository
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Use the action
+        uses: ./ # Uses an action in the root directory
+        id: check
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      # Use the output from the `check` step
+      - name: Get the output
+        run: echo "Has linked issues? ${{ steps.check.outputs.linked_issues_count }}"
