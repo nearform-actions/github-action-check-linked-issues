@@ -9627,7 +9627,125 @@ var __webpack_exports__ = {};
 var core = __nccwpck_require__(2186);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(5438);
+;// CONCATENATED MODULE: ./src/constants.js
+const ERROR_MESSAGE =
+  "No linked issues found. Please add the corresponding issues in the pull request description.";
+
+const BODY_COMMENT = `${ERROR_MESSAGE} <br/> 
+  [Use GitHub automation to close the issue when a PR is merged](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword)
+  `;
+
+// EXTERNAL MODULE: ./node_modules/minimatch/minimatch.js
+var minimatch = __nccwpck_require__(3973);
+;// CONCATENATED MODULE: ./src/util.js
+
+
+
+
+
+function parseCSV(value) {
+  if (value.trim() === "") return [];
+  return value.split(",").map((p) => p.trim());
+}
+
+function shouldRun() {
+  const excludeBranches = parseCSV(
+    core.getInput("exclude-branches", {
+      required: false,
+    })
+  );
+
+  if (!excludeBranches.length) return true;
+
+  const sourceBranch = github.context.payload.pull_request.head.ref;
+
+  const result = excludeBranches.some((p) => minimatch(sourceBranch, p));
+
+  if (result) {
+    core.notice("source branch matched the exclude pattern, exiting...");
+  }
+
+  return !result;
+}
+
+function addComment(octokit, subjectId) {
+  return octokit.graphql(
+    `
+        mutation addCommentWhenMissingLinkIssues($subjectId: String!, $body: String!) {
+          addComment(input:{subjectId: $subjectId, body: $body}) {
+            clientMutationId
+          }
+        }
+      `,
+    {
+      subjectId,
+      body: BODY_COMMENT,
+    }
+  );
+}
+
+function getLinkedIssues(
+  octokit,
+  repositoryName,
+  pullRequestNumber,
+  owner
+) {
+  return octokit.graphql(
+    `
+    query getLinkedIssues($owner: String!, $name: String!, $number: Int!) {
+      repository(owner: $owner, name: $name) {
+        pullRequest(number: $number) {
+          id
+          comments(first: 100){
+            nodes {
+              id
+              author {
+                login
+              }
+            }
+          }
+          closingIssuesReferences {
+            totalCount
+          }
+        }
+      }
+    }
+    `,
+    {
+      owner,
+      name: repositoryName,
+      number: pullRequestNumber,
+    }
+  );
+}
+
+function deleteLinkedIssueComments(octokit, nodeIds = []) {
+  if (!nodeIds.length) {
+    return;
+  }
+
+  return Promise.all(
+    nodeIds.map((id) =>
+      octokit.graphql(
+        `
+      mutation deleteCommentLinkedIssue($id: ID!) {
+        deleteIssueComment(input: {id: $id }) {
+          clientMutationId
+        }
+      }
+      `,
+        {
+          id,
+        }
+      )
+    )
+  );
+}
+
 ;// CONCATENATED MODULE: ./src/action.js
+
+
+
 
 
 
@@ -9659,39 +9777,35 @@ async function run() {
 
     const token = core.getInput("github-token");
     const octokit = github.getOctokit(token);
-    const data = await octokit.graphql(
-      `
-      query getLinkedIssues($owner: String!, $name: String!, $number: Int!) {
-        repository(owner: $owner, name: $name) {
-          pullRequest(number: $number) {
-            closingIssuesReferences {
-              totalCount
-            }
-          }
-        }
-      }
-      `,
-      {
-        owner: owner.login,
-        name,
-        number,
-      }
-    );
+    const data = await getLinkedIssues(octokit, name, number, owner.login);
 
     core.debug(`
     *** GRAPHQL DATA ***
     ${format(data)}
     `);
 
-    const linkedIssuesCount =
-      data?.repository?.pullRequest?.closingIssuesReferences?.totalCount;
+    const pullRequest = data?.repository?.pullRequest;
+    const linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
 
     core.setOutput("linked_issues_count", linkedIssuesCount);
 
     if (!linkedIssuesCount) {
-      core.setFailed(
-        `No linked issues found. Please add the corresponding issues in the pull request description.`
-      );
+      const subjectId = pullRequest?.id;
+
+      if (subjectId) {
+        await addComment(octokit, subjectId);
+        core.debug(`Comment added for ${subjectId} PR`);
+      }
+
+      core.setFailed(ERROR_MESSAGE);
+    } else {
+      // getting only github-actions comment ids
+      const nodeIds = pullRequest?.comments?.nodes
+        .filter(({ author: { login } }) => login === "github-actions")
+        .map(({ id }) => id);
+
+      await deleteLinkedIssueComments(octokit, nodeIds);
+      core.debug(`${nodeIds.length} Comments deleted.`);
     }
   } catch (error) {
     core.setFailed(error.message);
@@ -9703,38 +9817,6 @@ async function run() {
 }
 
 
-
-// EXTERNAL MODULE: ./node_modules/minimatch/minimatch.js
-var minimatch = __nccwpck_require__(3973);
-;// CONCATENATED MODULE: ./src/util.js
-
-
-
-
-function parseCSV(value) {
-  if (value.trim() === "") return [];
-  return value.split(",").map((p) => p.trim());
-}
-
-function shouldRun() {
-  const excludeBranches = parseCSV(
-    core.getInput("exclude-branches", {
-      required: false,
-    })
-  );
-
-  if (!excludeBranches.length) return true;
-
-  const sourceBranch = github.context.payload.pull_request.head.ref;
-
-  const result = excludeBranches.some((p) => minimatch(sourceBranch, p));
-
-  if (result) {
-    core.notice("source branch matched the exclude pattern, exiting...");
-  }
-
-  return !result;
-}
 
 ;// CONCATENATED MODULE: ./src/index.js
 
