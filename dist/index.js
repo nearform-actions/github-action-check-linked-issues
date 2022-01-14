@@ -9818,7 +9818,7 @@ async function run() {
 
     if (linkedIssuesComments.length) {
       await deleteLinkedIssueComments(octokit, linkedIssuesComments);
-      core.debug(`${linkedIssuesComments.length} Comments deleted.`);
+      core.debug(`${linkedIssuesComments.length} Comment(s) deleted.`);
     }
 
     if (!linkedIssuesCount) {
@@ -9829,7 +9829,7 @@ async function run() {
         const body = core.getInput("custom-body-comment");
         await addComment({ octokit, prId, body });
 
-        core.debug(`Comment added for ${prId} PR`);
+        core.debug("Comment added");
       }
 
       core.setFailed(ERROR_MESSAGE);

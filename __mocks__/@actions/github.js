@@ -2,28 +2,22 @@ module.exports = {
   __esModule: true,
   getOctokit: jest.fn(() => {
     return {
+      paginate: jest.fn(() => {
+        return new Promise((resolve) =>
+          resolve([
+            {
+              node_id: "fake-node-id",
+              body: '<!-- metadata = {"action":"linked_issue"} -->',
+            },
+          ])
+        );
+      }),
       graphql: jest.fn(() => {
         return new Promise((resolve) => {
           resolve({
             repository: {
               pullRequest: {
                 id: "fake-pr-id",
-                comments: {
-                  nodes: [
-                    {
-                      id: "fake-comment-id",
-                      author: {
-                        login: "fake-login",
-                      },
-                    },
-                    {
-                      id: "fake-comment-id-2",
-                      author: {
-                        login: "github-actions",
-                      },
-                    },
-                  ],
-                },
                 closingIssuesReferences: {
                   totalCount: 1,
                 },

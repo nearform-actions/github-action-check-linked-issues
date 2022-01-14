@@ -38,43 +38,51 @@ describe("shouldRun", () => {
 });
 
 it("should delete comments given node ids", async () => {
-  const oktokit = {
+  const octokit = {
     graphql: jest.fn(() => Promise.resolve()),
   };
-  const nodes = ["fake-node-id-1", "fake-node-id-2"];
+  const comments = [
+    {
+      node_id: "fake-node-id1",
+    },
+    {
+      node_id: "fake-node-id2",
+    },
+  ];
 
-  await deleteLinkedIssueComments(oktokit, nodes);
+  await deleteLinkedIssueComments(octokit, comments);
 
-  expect(oktokit.graphql).toHaveBeenCalledTimes(2);
-  expect(oktokit.graphql).toHaveBeenCalledWith(
+  expect(octokit.graphql).toHaveBeenCalledTimes(2);
+  expect(octokit.graphql).toHaveBeenCalledWith(
     expect.stringContaining("mutation deleteCommentLinkedIssue"),
     {
-      id: "fake-node-id-1",
+      id: "fake-node-id1",
     }
   );
-  expect(oktokit.graphql).toHaveBeenCalledWith(
+  expect(octokit.graphql).toHaveBeenCalledWith(
     expect.stringContaining("mutation deleteCommentLinkedIssue"),
     {
-      id: "fake-node-id-2",
+      id: "fake-node-id2",
     }
   );
 });
 
 it("should addComment given subjectId", async () => {
-  const oktokit = {
+  const octokit = {
     graphql: jest.fn(() => Promise.resolve()),
   };
-  const subjectId = "fake-subjectId";
+  const prId = "fake-pr-id";
+  const fakeCustomBody = "fake-comment-body";
 
-  await addComment(oktokit, subjectId);
+  await addComment({ octokit, prId, body: fakeCustomBody });
 
-  expect(oktokit.graphql).toHaveBeenCalledTimes(1);
-  expect(oktokit.graphql).toHaveBeenCalledWith(
+  expect(octokit.graphql).toHaveBeenCalledTimes(1);
+  expect(octokit.graphql).toHaveBeenCalledWith(
     expect.stringContaining("mutation addCommentWhenMissingLinkIssues"),
     {
-      subjectId: "fake-subjectId",
+      subjectId: "fake-pr-id",
       body: expect.stringContaining(
-        `No linked issues found. Please add the corresponding issues in the pull request description.`
+        'fake-comment-body <!-- metadata = {"action":"linked_issue"} -->'
       ),
     }
   );
