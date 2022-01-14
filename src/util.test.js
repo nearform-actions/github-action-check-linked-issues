@@ -81,17 +81,22 @@ it("should addComment given subjectId", async () => {
 });
 
 it("should get linked issues by repository name and pull request number", async () => {
-  const oktokit = {
+  const octokit = {
     graphql: jest.fn(() => Promise.resolve()),
   };
   const owner = "fake-owner";
   const name = "fake-repository-name";
   const number = "fake-pr-number";
 
-  await getLinkedIssues(oktokit, name, number, owner);
+  await getLinkedIssues({
+    octokit,
+    repoOwner: owner,
+    repoName: name,
+    prNumber: number,
+  });
 
-  expect(oktokit.graphql).toHaveBeenCalledTimes(1);
-  expect(oktokit.graphql).toHaveBeenCalledWith(
+  expect(octokit.graphql).toHaveBeenCalledTimes(1);
+  expect(octokit.graphql).toHaveBeenCalledWith(
     expect.stringContaining("query getLinkedIssues"),
     {
       owner,

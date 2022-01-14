@@ -6,6 +6,7 @@ import {
   getLinkedIssues,
   addComment,
   deleteLinkedIssueComments,
+  getPrComments,
 } from "./util.js";
 
 const format = (obj) => JSON.stringify(obj, undefined, 2);
@@ -36,7 +37,13 @@ async function run() {
 
     const token = core.getInput("github-token");
     const octokit = github.getOctokit(token);
-    const data = await getLinkedIssues(octokit, name, number, owner.login);
+
+    const data = await getLinkedIssues({
+      prNumber: number,
+      repoName: name,
+      repoOwner: owner.login,
+      octokit,
+    });
 
     core.debug(`
     *** GRAPHQL DATA ***
@@ -46,25 +53,32 @@ async function run() {
     const pullRequest = data?.repository?.pullRequest;
     const linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
 
+    const linkedIssuesComments = await getPrComments({
+      octokit,
+      repoName: name,
+      prNumber: number,
+      repoOwner: owner.login,
+    });
+
     core.setOutput("linked_issues_count", linkedIssuesCount);
 
-    if (!linkedIssuesCount) {
-      const subjectId = pullRequest?.id;
+    if (linkedIssuesComments.length) {
+      await deleteLinkedIssueComments(octokit, linkedIssuesComments);
+      core.debug(`${linkedIssuesComments.length} Comments deleted.`);
+    }
 
-      if (subjectId) {
-        await addComment(octokit, subjectId);
-        core.debug(`Comment added for ${subjectId} PR`);
+    if (!linkedIssuesCount) {
+      const prId = pullRequest?.id;
+      const shouldComment = core.getInput("comment") && prId;
+
+      if (shouldComment) {
+        const body = core.getInput("custom-body-comment");
+        await addComment({ octokit, prId, body });
+
+        core.debug(`Comment added for ${prId} PR`);
       }
 
       core.setFailed(ERROR_MESSAGE);
-    } else {
-      // getting only github-actions comment ids
-      const nodeIds = pullRequest?.comments?.nodes
-        .filter(({ author: { login } }) => login === "github-actions")
-        .map(({ id }) => id);
-
-      await deleteLinkedIssueComments(octokit, nodeIds);
-      core.debug(`${nodeIds.length} Comments deleted.`);
     }
   } catch (error) {
     core.setFailed(error.message);

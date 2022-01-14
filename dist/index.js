@@ -9631,10 +9631,6 @@ var github = __nccwpck_require__(5438);
 const ERROR_MESSAGE =
   "No linked issues found. Please add the corresponding issues in the pull request description.";
 
-const BODY_COMMENT = `${ERROR_MESSAGE} <br/> 
-  [Use GitHub automation to close the issue when a PR is merged](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword)
-  `;
-
 // EXTERNAL MODULE: ./node_modules/minimatch/minimatch.js
 var minimatch = __nccwpck_require__(3973);
 ;// CONCATENATED MODULE: ./src/util.js
@@ -9642,10 +9638,15 @@ var minimatch = __nccwpck_require__(3973);
 
 
 
-
 function parseCSV(value) {
   if (value.trim() === "") return [];
   return value.split(",").map((p) => p.trim());
+}
+
+function addMetadata(data) {
+  // metadata to identify the comment was made by this action
+  // https://github.com/probot/metadata#how-it-works
+  return `<!-- metadata = ${JSON.stringify(data)} -->`;
 }
 
 function shouldRun() {
@@ -9668,7 +9669,7 @@ function shouldRun() {
   return !result;
 }
 
-function addComment(octokit, subjectId) {
+function addComment({ octokit, prId, body }) {
   return octokit.graphql(
     `
         mutation addCommentWhenMissingLinkIssues($subjectId: String!, $body: String!) {
@@ -9678,32 +9679,19 @@ function addComment(octokit, subjectId) {
         }
       `,
     {
-      subjectId,
-      body: BODY_COMMENT,
+      subjectId: prId,
+      body: `${body} ${addMetadata({ action: "linked_issue" })}`,
     }
   );
 }
 
-function getLinkedIssues(
-  octokit,
-  repositoryName,
-  pullRequestNumber,
-  owner
-) {
+function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
   return octokit.graphql(
     `
     query getLinkedIssues($owner: String!, $name: String!, $number: Int!) {
       repository(owner: $owner, name: $name) {
         pullRequest(number: $number) {
           id
-          comments(first: 100){
-            nodes {
-              id
-              author {
-                login
-              }
-            }
-          }
           closingIssuesReferences {
             totalCount
           }
@@ -9712,20 +9700,46 @@ function getLinkedIssues(
     }
     `,
     {
-      owner,
-      name: repositoryName,
-      number: pullRequestNumber,
+      owner: repoOwner,
+      name: repoName,
+      number: prNumber,
     }
   );
 }
 
-function deleteLinkedIssueComments(octokit, nodeIds = []) {
-  if (!nodeIds.length) {
-    return;
-  }
+function filterLinkedIssuesComments(issues = []) {
+  return issues.filter((issue) => {
+    // it will only filter comments made by this action
+    const match = issue?.body?.match(/<!-- metadata = (.*) -->/);
 
+    if (match) {
+      const actionName = JSON.parse(match[1])["action"];
+      return actionName === "linked_issue";
+    }
+  });
+}
+
+async function getPrComments({
+  octokit,
+  repoName,
+  prNumber,
+  repoOwner,
+}) {
+  const issues = await octokit.paginate(
+    "GET /repos/{owner}/{repo}/issues/{prNumber}/comments",
+    {
+      owner: repoOwner,
+      repo: repoName,
+      prNumber,
+    }
+  );
+
+  return filterLinkedIssuesComments(issues);
+}
+
+function deleteLinkedIssueComments(octokit, comments) {
   return Promise.all(
-    nodeIds.map((id) =>
+    comments.map(({ node_id }) =>
       octokit.graphql(
         `
       mutation deleteCommentLinkedIssue($id: ID!) {
@@ -9735,7 +9749,7 @@ function deleteLinkedIssueComments(octokit, nodeIds = []) {
       }
       `,
         {
-          id,
+          id: node_id,
         }
       )
     )
@@ -9777,7 +9791,13 @@ async function run() {
 
     const token = core.getInput("github-token");
     const octokit = github.getOctokit(token);
-    const data = await getLinkedIssues(octokit, name, number, owner.login);
+
+    const data = await getLinkedIssues({
+      prNumber: number,
+      repoName: name,
+      repoOwner: owner.login,
+      octokit,
+    });
 
     core.debug(`
     *** GRAPHQL DATA ***
@@ -9787,25 +9807,32 @@ async function run() {
     const pullRequest = data?.repository?.pullRequest;
     const linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
 
+    const linkedIssuesComments = await getPrComments({
+      octokit,
+      repoName: name,
+      prNumber: number,
+      repoOwner: owner.login,
+    });
+
     core.setOutput("linked_issues_count", linkedIssuesCount);
 
-    if (!linkedIssuesCount) {
-      const subjectId = pullRequest?.id;
+    if (linkedIssuesComments.length) {
+      await deleteLinkedIssueComments(octokit, linkedIssuesComments);
+      core.debug(`${linkedIssuesComments.length} Comments deleted.`);
+    }
 
-      if (subjectId) {
-        await addComment(octokit, subjectId);
-        core.debug(`Comment added for ${subjectId} PR`);
+    if (!linkedIssuesCount) {
+      const prId = pullRequest?.id;
+      const shouldComment = core.getInput("comment") && prId;
+
+      if (shouldComment) {
+        const body = core.getInput("custom-body-comment");
+        await addComment({ octokit, prId, body });
+
+        core.debug(`Comment added for ${prId} PR`);
       }
 
       core.setFailed(ERROR_MESSAGE);
-    } else {
-      // getting only github-actions comment ids
-      const nodeIds = pullRequest?.comments?.nodes
-        .filter(({ author: { login } }) => login === "github-actions")
-        .map(({ id }) => id);
-
-      await deleteLinkedIssueComments(octokit, nodeIds);
-      core.debug(`${nodeIds.length} Comments deleted.`);
     }
   } catch (error) {
     core.setFailed(error.message);
