@@ -6,7 +6,7 @@ GitHub action to check if pull requests have their corresponding issues linked, 
 
 See [action.yml](action.yml).
 
-## Usage
+## Standard Usage
 
 Configure a workflow to run a job on these `pull_request` events:
 
@@ -29,8 +29,11 @@ jobs:
       - name: Get the output
         run: echo "How many linked issues? ${{ steps.check-linked-issues.outputs.linked_issues_count }}"
 ```
+When the action cannot find any linked issues it will fail explaining the reason.
 
- When the job fails, it will add a new comment by default. You can also write your custom comment:
+## Adding Comments
+By default, when the job fails it adds a new comment on Pull Request, but you can also write your custom comment setting 
+`custom-body-comment`.
 
 ```yaml
 on:
@@ -54,7 +57,7 @@ jobs:
         run: echo "How many linked issues? ${{ steps.check-linked-issues.outputs.linked_issues_count }}"
 ```
 
-Or disable the feature to add comments. Setting `comment` to an empty string.
+To disable comments in your Pull Request, you just need to set `comment` to false.
 
 ```yaml
 on:
@@ -71,14 +74,14 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           exclude-branches: "release/**, dependabot/**"
-          comment: ""
+          comment: false
 
       # OPTIONAL: Use the output from the `check-linked-issues` step
       - name: Get the output
         run: echo "How many linked issues? ${{ steps.check-linked-issues.outputs.linked_issues_count }}"
 ```
 
-When the action cannot find any linked issues it will fail explaining the reason.
+
 
 ## Limitations ⚠️
 
