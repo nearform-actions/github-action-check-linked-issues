@@ -12,14 +12,14 @@ it("should fail when called with an unsupported event type", async () => {
   await run();
 
   expect(core.setFailed).toHaveBeenCalledWith(
-    `This action can only run on "pull_request", but "WHATEVER" was received. Please check your workflow.`
+    `This action can only run on "pull_request_target", but "WHATEVER" was received. Please check your workflow.`
   );
 });
 
 it("should return the number of linked issues", async () => {
   // eslint-disable-next-line
   github.context = {
-    eventName: "pull_request",
+    eventName: "pull_request_target",
     payload: {
       action: "opened",
       number: 123,
@@ -40,7 +40,7 @@ it("should return the number of linked issues", async () => {
 it("should fail when no linked issues are found", async () => {
   // eslint-disable-next-line
   github.context = {
-    eventName: "pull_request",
+    eventName: "pull_request_target",
     payload: {
       action: "opened",
       number: 123,
