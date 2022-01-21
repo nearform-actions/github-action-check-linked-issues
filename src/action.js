@@ -1,6 +1,14 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 
+import { ERROR_MESSAGE } from "./constants.js";
+import {
+  getLinkedIssues,
+  addComment,
+  deleteLinkedIssueComments,
+  getPrComments,
+} from "./util.js";
+
 const format = (obj) => JSON.stringify(obj, undefined, 2);
 
 async function run() {
@@ -29,39 +37,48 @@ async function run() {
 
     const token = core.getInput("github-token");
     const octokit = github.getOctokit(token);
-    const data = await octokit.graphql(
-      `
-      query getLinkedIssues($owner: String!, $name: String!, $number: Int!) {
-        repository(owner: $owner, name: $name) {
-          pullRequest(number: $number) {
-            closingIssuesReferences {
-              totalCount
-            }
-          }
-        }
-      }
-      `,
-      {
-        owner: owner.login,
-        name,
-        number,
-      }
-    );
+
+    const data = await getLinkedIssues({
+      prNumber: number,
+      repoName: name,
+      repoOwner: owner.login,
+      octokit,
+    });
 
     core.debug(`
     *** GRAPHQL DATA ***
     ${format(data)}
     `);
 
-    const linkedIssuesCount =
-      data?.repository?.pullRequest?.closingIssuesReferences?.totalCount;
+    const pullRequest = data?.repository?.pullRequest;
+    const linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
+
+    const linkedIssuesComments = await getPrComments({
+      octokit,
+      repoName: name,
+      prNumber: number,
+      repoOwner: owner.login,
+    });
 
     core.setOutput("linked_issues_count", linkedIssuesCount);
 
+    if (linkedIssuesComments.length) {
+      await deleteLinkedIssueComments(octokit, linkedIssuesComments);
+      core.debug(`${linkedIssuesComments.length} Comment(s) deleted.`);
+    }
+
     if (!linkedIssuesCount) {
-      core.setFailed(
-        `No linked issues found. Please add the corresponding issues in the pull request description.`
-      );
+      const prId = pullRequest?.id;
+      const shouldComment = core.getInput("comment") && prId;
+
+      if (shouldComment) {
+        const body = core.getInput("custom-body-comment");
+        await addComment({ octokit, prId, body });
+
+        core.debug("Comment added");
+      }
+
+      core.setFailed(ERROR_MESSAGE);
     }
   } catch (error) {
     core.setFailed(error.message);

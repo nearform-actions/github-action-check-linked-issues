@@ -9627,7 +9627,139 @@ var __webpack_exports__ = {};
 var core = __nccwpck_require__(2186);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(5438);
+;// CONCATENATED MODULE: ./src/constants.js
+const ERROR_MESSAGE =
+  "No linked issues found. Please add the corresponding issues in the pull request description.";
+
+// EXTERNAL MODULE: ./node_modules/minimatch/minimatch.js
+var minimatch = __nccwpck_require__(3973);
+;// CONCATENATED MODULE: ./src/util.js
+
+
+
+
+function parseCSV(value) {
+  if (value.trim() === "") return [];
+  return value.split(",").map((p) => p.trim());
+}
+
+function addMetadata(data) {
+  // metadata to identify the comment was made by this action
+  // https://github.com/probot/metadata#how-it-works
+  return `<!-- metadata = ${JSON.stringify(data)} -->`;
+}
+
+function shouldRun() {
+  const excludeBranches = parseCSV(
+    core.getInput("exclude-branches", {
+      required: false,
+    })
+  );
+
+  if (!excludeBranches.length) return true;
+
+  const sourceBranch = github.context.payload.pull_request.head.ref;
+
+  const result = excludeBranches.some((p) => minimatch(sourceBranch, p));
+
+  if (result) {
+    core.notice("source branch matched the exclude pattern, exiting...");
+  }
+
+  return !result;
+}
+
+function addComment({ octokit, prId, body }) {
+  return octokit.graphql(
+    `
+        mutation addCommentWhenMissingLinkIssues($subjectId: String!, $body: String!) {
+          addComment(input:{subjectId: $subjectId, body: $body}) {
+            clientMutationId
+          }
+        }
+      `,
+    {
+      subjectId: prId,
+      body: `${body} ${addMetadata({ action: "linked_issue" })}`,
+    }
+  );
+}
+
+function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
+  return octokit.graphql(
+    `
+    query getLinkedIssues($owner: String!, $name: String!, $number: Int!) {
+      repository(owner: $owner, name: $name) {
+        pullRequest(number: $number) {
+          id
+          closingIssuesReferences {
+            totalCount
+          }
+        }
+      }
+    }
+    `,
+    {
+      owner: repoOwner,
+      name: repoName,
+      number: prNumber,
+    }
+  );
+}
+
+function filterLinkedIssuesComments(issues = []) {
+  return issues.filter((issue) => {
+    // it will only filter comments made by this action
+    const match = issue?.body?.match(/<!-- metadata = (.*) -->/);
+
+    if (match) {
+      const actionName = JSON.parse(match[1])["action"];
+      return actionName === "linked_issue";
+    }
+  });
+}
+
+async function getPrComments({
+  octokit,
+  repoName,
+  prNumber,
+  repoOwner,
+}) {
+  const issues = await octokit.paginate(
+    "GET /repos/{owner}/{repo}/issues/{prNumber}/comments",
+    {
+      owner: repoOwner,
+      repo: repoName,
+      prNumber,
+    }
+  );
+
+  return filterLinkedIssuesComments(issues);
+}
+
+function deleteLinkedIssueComments(octokit, comments) {
+  return Promise.all(
+    comments.map(({ node_id }) =>
+      octokit.graphql(
+        `
+      mutation deleteCommentLinkedIssue($id: ID!) {
+        deleteIssueComment(input: {id: $id }) {
+          clientMutationId
+        }
+      }
+      `,
+        {
+          id: node_id,
+        }
+      )
+    )
+  );
+}
+
 ;// CONCATENATED MODULE: ./src/action.js
+
+
+
 
 
 
@@ -9659,39 +9791,48 @@ async function run() {
 
     const token = core.getInput("github-token");
     const octokit = github.getOctokit(token);
-    const data = await octokit.graphql(
-      `
-      query getLinkedIssues($owner: String!, $name: String!, $number: Int!) {
-        repository(owner: $owner, name: $name) {
-          pullRequest(number: $number) {
-            closingIssuesReferences {
-              totalCount
-            }
-          }
-        }
-      }
-      `,
-      {
-        owner: owner.login,
-        name,
-        number,
-      }
-    );
+
+    const data = await getLinkedIssues({
+      prNumber: number,
+      repoName: name,
+      repoOwner: owner.login,
+      octokit,
+    });
 
     core.debug(`
     *** GRAPHQL DATA ***
     ${format(data)}
     `);
 
-    const linkedIssuesCount =
-      data?.repository?.pullRequest?.closingIssuesReferences?.totalCount;
+    const pullRequest = data?.repository?.pullRequest;
+    const linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
+
+    const linkedIssuesComments = await getPrComments({
+      octokit,
+      repoName: name,
+      prNumber: number,
+      repoOwner: owner.login,
+    });
 
     core.setOutput("linked_issues_count", linkedIssuesCount);
 
+    if (linkedIssuesComments.length) {
+      await deleteLinkedIssueComments(octokit, linkedIssuesComments);
+      core.debug(`${linkedIssuesComments.length} Comment(s) deleted.`);
+    }
+
     if (!linkedIssuesCount) {
-      core.setFailed(
-        `No linked issues found. Please add the corresponding issues in the pull request description.`
-      );
+      const prId = pullRequest?.id;
+      const shouldComment = core.getInput("comment") && prId;
+
+      if (shouldComment) {
+        const body = core.getInput("custom-body-comment");
+        await addComment({ octokit, prId, body });
+
+        core.debug("Comment added");
+      }
+
+      core.setFailed(ERROR_MESSAGE);
     }
   } catch (error) {
     core.setFailed(error.message);
@@ -9703,38 +9844,6 @@ async function run() {
 }
 
 
-
-// EXTERNAL MODULE: ./node_modules/minimatch/minimatch.js
-var minimatch = __nccwpck_require__(3973);
-;// CONCATENATED MODULE: ./src/util.js
-
-
-
-
-function parseCSV(value) {
-  if (value.trim() === "") return [];
-  return value.split(",").map((p) => p.trim());
-}
-
-function shouldRun() {
-  const excludeBranches = parseCSV(
-    core.getInput("exclude-branches", {
-      required: false,
-    })
-  );
-
-  if (!excludeBranches.length) return true;
-
-  const sourceBranch = github.context.payload.pull_request.head.ref;
-
-  const result = excludeBranches.some((p) => minimatch(sourceBranch, p));
-
-  if (result) {
-    core.notice("source branch matched the exclude pattern, exiting...");
-  }
-
-  return !result;
-}
 
 ;// CONCATENATED MODULE: ./src/index.js
 
