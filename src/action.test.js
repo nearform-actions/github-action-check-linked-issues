@@ -16,7 +16,7 @@ it("should fail when called with an unsupported event type", async () => {
   await run();
 
   expect(core.setFailed).toHaveBeenCalledWith(
-    `This action can only run on "pull_request_target" and "pull_request", but "WHATEVER" was received. Please check your workflow.`
+    `This action can only run on "pull_request_target" or "pull_request", but "WHATEVER" was received. Please check your workflow.`
   );
 });
 
