@@ -8,10 +8,10 @@ See [action.yml](action.yml).
 
 ## Standard Usage
 
-Configure a workflow to run a job on these `pull_request` or  `pull_request_target` events:
+Configure a workflow to run a job on these `pull_request` or  `pull_request_target` events.
 
-If you enable `comments` feature we recommend to listen `pull_request_target` event. 
-`pull_request_target` event has write permission to the target repository allowing external forks create comments.
+If you enable the `comments` option (enabled by default) we recommend to listen on `pull_request_target` event.
+`pull_request_target` event has write permission to the target repository allowing external forks to create comments.
 
 ```yaml
 on:
