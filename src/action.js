@@ -19,9 +19,9 @@ async function run() {
   try {
     const { payload, eventName } = github.context;
 
-    if (eventName !== "pull_request_target") {
+    if (eventName !== "pull_request_target" && eventName !== "pull_request") {
       throw new Error(
-        `This action can only run on "pull_request_target", but "${eventName}" was received. Please check your workflow.`
+        `This action can only run on "pull_request_target" and "pull_request", but "${eventName}" was received. Please check your workflow.`
       );
     }
 
