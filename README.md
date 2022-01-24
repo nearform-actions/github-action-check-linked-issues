@@ -8,11 +8,14 @@ See [action.yml](action.yml).
 
 ## Standard Usage
 
-Configure a workflow to run a job on these `pull_request` events:
+Configure a workflow to run a job on these `pull_request` or  `pull_request_target` events.
+
+If you enable the `comments` option (enabled by default) we recommend to listen on `pull_request_target` event.
+`pull_request_target` event has write permission to the target repository allowing external forks to create comments.
 
 ```yaml
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, edited, reopened, synchronize]
 
 jobs:
@@ -37,7 +40,7 @@ By default, when the job fails it adds a new comment on Pull Request, but you ca
 
 ```yaml
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, edited, reopened, synchronize]
 
 jobs:
@@ -61,7 +64,7 @@ To disable comments in your Pull Request, you just need to set `comment` to fals
 
 ```yaml
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, edited, reopened, synchronize]
 
 jobs:
