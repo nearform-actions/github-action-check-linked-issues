@@ -106,3 +106,7 @@ This is a GitHub limitation. This table shows what happens:
 
 
 Please **DO NOT** link issues manually from the sidebar, neither from commit messages.
+
+## Referencing issues in another repository
+
+You can also reference issues outside of the repository on which the workflow is running. This works only if the repository containing the issue is `public`. Issues in private repositories are not accessible by this action.
