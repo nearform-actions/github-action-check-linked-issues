@@ -36,7 +36,7 @@ export function shouldRun() {
 export function addComment({ octokit, prId, body }) {
   return octokit.graphql(
     `
-        mutation addCommentWhenMissingLinkIssues($subjectId: String!, $body: String!) {
+        mutation addCommentWhenMissingLinkIssues($subjectId: ID!, $body: String!) {
           addComment(input:{subjectId: $subjectId, body: $body}) {
             clientMutationId
           }
