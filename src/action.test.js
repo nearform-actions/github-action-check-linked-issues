@@ -51,6 +51,12 @@ test.each([
 test.each([["pull_request"], ["pull_request_target"]])(
   "should fail when no linked issues are found and add comment into PR while listening %p event",
   async (eventName) => {
+    const addCommentMutation =
+      `mutation addCommentWhenMissingLinkIssues($subjectId: ID!, $body: String!) {
+    addComment(input:{subjectId: $subjectId, body: $body}) {
+      clientMutationId
+    }
+  }`.replace(/\s/g, "");
     // eslint-disable-next-line
   github.context = {
       eventName,
@@ -65,6 +71,21 @@ test.each([["pull_request"], ["pull_request_target"]])(
         },
       },
     };
+
+    const graphql = jest.fn(() => {
+      return new Promise((resolve) => {
+        resolve({
+          repository: {
+            pullRequest: {
+              id: "fake-pr-id",
+              closingIssuesReferences: {
+                totalCount: 0,
+              },
+            },
+          },
+        });
+      });
+    });
 
     // eslint-disable-next-line
   github.getOctokit = jest.fn(() => {
@@ -83,20 +104,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
             ])
           );
         }),
-        graphql: jest.fn(() => {
-          return new Promise((resolve) => {
-            resolve({
-              repository: {
-                pullRequest: {
-                  id: "fake-pr-id",
-                  closingIssuesReferences: {
-                    totalCount: 0,
-                  },
-                },
-              },
-            });
-          });
-        }),
+        graphql,
       };
     });
 
@@ -104,6 +112,10 @@ test.each([["pull_request"], ["pull_request_target"]])(
   core.getInput.mockReturnValue("true");
 
     await run();
+
+    const mutationQueryCall = graphql.mock.calls[2][0].replace(/\s/g, "");
+
+    expect(mutationQueryCall).toEqual(addCommentMutation);
 
     expect(core.setFailed).toHaveBeenCalledWith(
       `No linked issues found. Please add the corresponding issues in the pull request description.`
