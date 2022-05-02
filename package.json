@@ -22,7 +22,7 @@
     "minimatch": "^5.0.1"
   },
   "devDependencies": {
-    "@babel/preset-env": "^7.16.11",
+    "@babel/preset-env": "^7.17.10",
     "@vercel/ncc": "^0.33.4",
     "eslint": "^7.29.0",
     "eslint-config-prettier": "^8.5.0",
