@@ -8,7 +8,7 @@
   },
   "license": "MIT",
   "type": "module",
-  "main": "src/index.js",
+  "main": "src/index.cjs",
   "scripts": {
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
