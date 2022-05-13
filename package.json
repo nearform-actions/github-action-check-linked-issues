@@ -13,7 +13,7 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "test": "jest",
-    "build": "esbuild --bundle ./src --platform=node --target=node16 --outdir=dist",
+    "build": "esbuild --bundle ./src/index.js --platform=node --target=node16 --outdir=dist",
     "prepare": "husky install"
   },
   "dependencies": {
