@@ -8,22 +8,23 @@
   },
   "license": "MIT",
   "type": "module",
-  "main": "src/index.cjs",
+  "main": "src/index.js",
   "scripts": {
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "test": "jest",
-    "build": "ncc build src",
+    "build": "esbuild --bundle ./src --platform=node --target=node16 --outdir=dist",
     "prepare": "husky install"
   },
   "dependencies": {
-    "@actions/core": "^1.8.1",
-    "@actions/github": "^5.0.2",
+    "@actions/core": "^1.8.2",
+    "@actions/github": "^5.0.3",
     "minimatch": "^5.0.1"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.17.10",
     "@vercel/ncc": "^0.33.4",
+    "esbuild": "^0.14.39",
     "eslint": "^7.29.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-jest": "^26.1.5",
