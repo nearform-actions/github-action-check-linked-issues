@@ -22,7 +22,7 @@ jobs:
       - name: Setting composite action runtime
         uses: actions/setup-node@v3.1.0
         with:
-          node-version: 12
+          node-version-file: '.nvmrc'
 
       - uses: nearform/optic-release-automation-action@main
         with:
