@@ -20,9 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setting composite action runtime
-        uses: actions/setup-node@v3.1.0
+        uses: actions/setup-node@v3
         with:
-          node-version-file: '.nvmrc'
+          node-version: 16
 
       - uses: nearform/optic-release-automation-action@main
         with:
