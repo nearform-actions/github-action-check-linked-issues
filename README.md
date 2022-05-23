@@ -1,3 +1,5 @@
+...
+
 # github-action-check-linked-issues
 
 GitHub action to check if pull requests have their corresponding issues linked, in order to enforce traceability.
