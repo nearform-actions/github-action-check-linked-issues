@@ -10,6 +10,9 @@ jobs:
           node-version-file: '.nvmrc'
       - run: npm ci
       - run: npm test
+      - run: npm run build
+      - name: "Check dist/index.js does not contain eval('require') or eval(\"require\")"
+        run: ./check-require.sh
 
   automerge:
     needs: build
