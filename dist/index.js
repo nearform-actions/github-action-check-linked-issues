@@ -13378,7 +13378,7 @@ async function getPrComments({
   );
 
   const filtered = filterLinkedIssuesComments(comments);
-  console.log({ comments, filtered });
+  core.notice(JSON.stringify({ comments, filtered }));
   return filtered;
 }
 
