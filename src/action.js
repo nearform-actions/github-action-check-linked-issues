@@ -11,6 +11,8 @@ import {
 
 const format = (obj) => JSON.stringify(obj, undefined, 2);
 
+// test comment
+
 async function run() {
   core.info(`
     *** ACTION RUN - START ***
