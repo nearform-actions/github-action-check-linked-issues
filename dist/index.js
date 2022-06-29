@@ -13464,11 +13464,11 @@ async function run() {
     core.setOutput("linked_issues_count", linkedIssuesCount);
 
     if (linkedIssuesComments.length) {
-      await deleteLinkedIssueComments(octokit, linkedIssuesComments);
-      core.debug(`${linkedIssuesComments.length} Comment(s) deleted.`);
-    }
-
-    if (!linkedIssuesCount) {
+      if (linkedIssuesCount) {
+        await deleteLinkedIssueComments(octokit, linkedIssuesComments);
+        core.debug(`${linkedIssuesComments.length} Comment(s) deleted.`);
+      }
+    } else if (!linkedIssuesCount) {
       const prId = pullRequest?.id;
       const shouldComment = core.getInput("comment") && prId;
 
