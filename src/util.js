@@ -89,7 +89,7 @@ export async function getPrComments({
   prNumber,
   repoOwner,
 }) {
-  const issues = await octokit.paginate(
+  const comments = await octokit.paginate(
     "GET /repos/{owner}/{repo}/issues/{prNumber}/comments",
     {
       owner: repoOwner,
@@ -98,7 +98,9 @@ export async function getPrComments({
     }
   );
 
-  return filterLinkedIssuesComments(issues);
+  const filtered = filterLinkedIssuesComments(comments);
+  console.log({ comments, filtered });
+  return filtered;
 }
 
 export function deleteLinkedIssueComments(octokit, comments) {
