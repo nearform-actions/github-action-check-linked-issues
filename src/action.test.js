@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { run } from "./action.js";
+import { ERROR_MESSAGE } from "./constants.js";
 
 jest.mock("@actions/core");
 jest.mock("@actions/github");
@@ -88,7 +89,77 @@ test.each([["pull_request"], ["pull_request_target"]])(
     });
 
     // eslint-disable-next-line
-  github.getOctokit = jest.fn(() => {
+    github.getOctokit = jest.fn(() => {
+      return {
+        paginate: jest.fn(() => {
+          return new Promise((resolve) =>
+            resolve([
+              {
+                node_id: "fake-node-id",
+                body: "fake comment",
+              },
+            ])
+          );
+        }),
+        graphql,
+      };
+    });
+
+    // eslint-disable-next-line
+    core.getInput.mockReturnValue("true");
+
+    await run();
+
+    const mutationQueryCall = graphql.mock.calls[1][0].replace(/\s/g, "");
+
+    expect(mutationQueryCall).toEqual(addCommentMutation);
+
+    expect(core.setFailed).toHaveBeenCalledWith(ERROR_MESSAGE);
+    expect(core.debug).toHaveBeenCalledWith("Comment added");
+  }
+);
+
+test.each([["pull_request"], ["pull_request_target"]])(
+  "should fail when no linked issues are found and take no action if a comment from this action is already present while listening %p event",
+  async (eventName) => {
+    const addCommentMutation =
+      `mutation addCommentWhenMissingLinkIssues($subjectId: ID!, $body: String!) {
+    addComment(input:{subjectId: $subjectId, body: $body}) {
+      clientMutationId
+    }
+  }`.replace(/\s/g, "");
+    // eslint-disable-next-line
+  github.context = {
+      eventName,
+      payload: {
+        action: "opened",
+        number: 123,
+        repository: {
+          name: "repo_name",
+          owner: {
+            login: "org_name",
+          },
+        },
+      },
+    };
+
+    const graphql = jest.fn(() => {
+      return new Promise((resolve) => {
+        resolve({
+          repository: {
+            pullRequest: {
+              id: "fake-pr-id",
+              closingIssuesReferences: {
+                totalCount: 0,
+              },
+            },
+          },
+        });
+      });
+    });
+
+    // eslint-disable-next-line
+    github.getOctokit = jest.fn(() => {
       return {
         paginate: jest.fn(() => {
           return new Promise((resolve) =>
@@ -109,18 +180,13 @@ test.each([["pull_request"], ["pull_request_target"]])(
     });
 
     // eslint-disable-next-line
-  core.getInput.mockReturnValue("true");
+    core.getInput.mockReturnValue("true");
 
     await run();
 
-    const mutationQueryCall = graphql.mock.calls[2][0].replace(/\s/g, "");
+    expect(graphql).not.toHaveBeenCalledWith(addCommentMutation);
 
-    expect(mutationQueryCall).toEqual(addCommentMutation);
-
-    expect(core.setFailed).toHaveBeenCalledWith(
-      `No linked issues found. Please add the corresponding issues in the pull request description.`
-    );
-    expect(core.debug).toHaveBeenCalledWith("Comment added");
+    expect(core.setFailed).toHaveBeenCalledWith(ERROR_MESSAGE);
   }
 );
 

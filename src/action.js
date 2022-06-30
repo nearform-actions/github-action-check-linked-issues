@@ -62,14 +62,9 @@ async function run() {
 
     core.setOutput("linked_issues_count", linkedIssuesCount);
 
-    if (linkedIssuesComments.length) {
-      await deleteLinkedIssueComments(octokit, linkedIssuesComments);
-      core.debug(`${linkedIssuesComments.length} Comment(s) deleted.`);
-    }
-
     if (!linkedIssuesCount) {
       const prId = pullRequest?.id;
-      const shouldComment = core.getInput("comment") && prId;
+      const shouldComment = !linkedIssuesComments.length && core.getInput("comment") && prId;
 
       if (shouldComment) {
         const body = core.getInput("custom-body-comment");
@@ -79,6 +74,9 @@ async function run() {
       }
 
       core.setFailed(ERROR_MESSAGE);
+    } else if (linkedIssuesComments.length) {
+      await deleteLinkedIssueComments(octokit, linkedIssuesComments);
+      core.debug(`${linkedIssuesComments.length} Comment(s) deleted.`);
     }
   } catch (error) {
     core.setFailed(error.message);
