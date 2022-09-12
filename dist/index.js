@@ -13945,17 +13945,30 @@ function shouldRun() {
     })
   );
 
-  if (!excludeBranches.length) return true;
+  if (excludeBranches.length) {
+    const sourceBranch = github.context.payload.pull_request.head.ref;
 
-  const sourceBranch = github.context.payload.pull_request.head.ref;
-
-  const result = excludeBranches.some((p) => minimatch(sourceBranch, p));
-
-  if (result) {
-    core.notice("source branch matched the exclude pattern, exiting...");
+    if (excludeBranches.some((p) => minimatch(sourceBranch, p))) {
+      core.notice("source branch matched the exclude pattern, exiting...");
+      return false;
+    }
   }
 
-  return !result;
+  const excludeLabels = parseCSV(
+      core.getInput("exclude-labels", {
+        required: false,
+      })
+  );
+  if (excludeLabels.length) {
+    const labels = github.context.payload.pull_request.labels;
+    for (const label of labels) {
+      if (excludeLabels.includes(label.name)) {
+        core.notice("exclude label was found, exiting...");
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 function addComment({ octokit, prId, body }) {
