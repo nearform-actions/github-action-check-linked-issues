@@ -13955,17 +13955,15 @@ function shouldRun() {
   }
 
   const excludeLabels = parseCSV(
-      core.getInput("exclude-labels", {
-        required: false,
-      })
+    core.getInput("exclude-labels", {
+      required: false,
+    })
   );
   if (excludeLabels.length) {
-    const labels = github.context.payload.pull_request.labels;
-    for (const label of labels) {
-      if (excludeLabels.includes(label.name)) {
-        core.notice("exclude label was found, exiting...");
-        return false;
-      }
+    const labels = github.context.payload.pull_request.labels || [];
+    if (labels.some(({ name }) => excludeLabels.includes(name))) {
+      core.notice("excluded label was found, exiting...");
+      return false;
     }
   }
   return true;

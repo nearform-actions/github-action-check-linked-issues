@@ -30,9 +30,9 @@ export function shouldRun() {
   }
 
   const excludeLabels = parseCSV(
-      core.getInput("exclude-labels", {
-        required: false,
-      })
+    core.getInput("exclude-labels", {
+      required: false,
+    })
   );
   if (excludeLabels.length) {
     const labels = github.context.payload.pull_request.labels || [];

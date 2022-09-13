@@ -28,7 +28,9 @@ describe("shouldRun", () => {
   ])(
     "should return correct value for each case",
     async (excludeBranches, excludeLabels, sourceBranch, result) => {
-      core.getInput.mockImplementation(a => (a === "exclude-branches") ? excludeBranches : excludeLabels);
+      core.getInput.mockImplementation((a) =>
+        a === "exclude-branches" ? excludeBranches : excludeLabels
+      );
 
       // eslint-disable-next-line
       github.context = {
@@ -36,7 +38,7 @@ describe("shouldRun", () => {
         payload: {
           pull_request: {
             head: { ref: sourceBranch },
-            labels: [{name: "test-label"},],
+            labels: [{ name: "test-label" }],
           },
         },
       };
