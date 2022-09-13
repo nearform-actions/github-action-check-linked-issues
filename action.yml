@@ -14,6 +14,10 @@ inputs:
     description: "A comma-separated list of patterns to ignore source branches. (Any pattern supported by `minimatch`)"
     required: false
     default: ""
+  exclude-labels:
+    description: "A comma-separated list of labels to ignore."
+    required: false
+    default: ""
   comment:
     description: "A boolean value that allow the action to create a comment"
     required: false
