@@ -9,7 +9,8 @@ branding:
 inputs:
   github-token:
     description: "Your Github token, it's already available to your Github action."
-    required: true
+    required: false
+    default: ${{ github.token }}
   exclude-branches:
     description: "A comma-separated list of patterns to ignore source branches. (Any pattern supported by `minimatch`)"
     required: false
