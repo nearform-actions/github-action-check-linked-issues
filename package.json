@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@babel/preset-env": "^7.20.2",
-    "@vercel/ncc": "^0.34.0",
+    "@vercel/ncc": "^0.36.0",
     "eslint": "^7.29.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-jest": "^27.1.6",
