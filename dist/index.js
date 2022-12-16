@@ -7862,7 +7862,7 @@ class Minimatch {
       negateOffset++
     }
 
-    if (negateOffset) this.pattern = pattern.substr(negateOffset)
+    if (negateOffset) this.pattern = pattern.slice(negateOffset)
     this.negate = negate
   }
 
@@ -8238,7 +8238,7 @@ class Minimatch {
           } catch (er) {
             // not a valid class!
             sp = this.parse(cs, SUBPARSE)
-            re = re.substr(0, reClassStart) + '\\[' + sp[0] + '\\]'
+            re = re.substring(0, reClassStart) + '\\[' + sp[0] + '\\]'
             hasMagic = hasMagic || sp[1]
             inClass = false
             continue
@@ -8271,9 +8271,9 @@ class Minimatch {
       // this is a huge pita.  We now have to re-walk
       // the contents of the would-be class to re-translate
       // any characters that were passed through as-is
-      cs = pattern.substr(classStart + 1)
+      cs = pattern.slice(classStart + 1)
       sp = this.parse(cs, SUBPARSE)
-      re = re.substr(0, reClassStart) + '\\[' + sp[0]
+      re = re.substring(0, reClassStart) + '\\[' + sp[0]
       hasMagic = hasMagic || sp[1]
     }
 
@@ -14008,8 +14008,14 @@ function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
       repository(owner: $owner, name: $name) {
         pullRequest(number: $number) {
           id
-          closingIssuesReferences {
+          closingIssuesReferences(first: 100) {
             totalCount
+            nodes {
+              number
+              repository {
+                nameWithOwner
+              }
+            }
           }
         }
       }
@@ -14122,6 +14128,9 @@ async function run() {
 
     const pullRequest = data?.repository?.pullRequest;
     const linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
+    const issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
+      (node) => `${node.repository.nameWithOwner}#${node.number}`
+    );
 
     const linkedIssuesComments = await getPrComments({
       octokit,
@@ -14131,6 +14140,7 @@ async function run() {
     });
 
     core.setOutput("linked_issues_count", linkedIssuesCount);
+    core.setOutput("issues", issues);
 
     if (!linkedIssuesCount) {
       const prId = pullRequest?.id;

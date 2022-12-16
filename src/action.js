@@ -52,6 +52,9 @@ async function run() {
 
     const pullRequest = data?.repository?.pullRequest;
     const linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
+    const issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
+      (node) => `${node.repository.nameWithOwner}#${node.number}`
+    );
 
     const linkedIssuesComments = await getPrComments({
       octokit,
@@ -61,6 +64,7 @@ async function run() {
     });
 
     core.setOutput("linked_issues_count", linkedIssuesCount);
+    core.setOutput("issues", issues);
 
     if (!linkedIssuesCount) {
       const prId = pullRequest?.id;
