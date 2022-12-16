@@ -22,13 +22,13 @@ it("should fail when called with an unsupported event type", async () => {
 });
 
 test.each([
-  ["pull_request", 1],
-  ["pull_request_target", 1],
+  ["pull_request", 2, ["test/repo#12345", "another/repository#456"]],
+  ["pull_request_target", 2, ["test/repo#12345", "another/repository#456"]],
 ])(
-  "should return the number of linked issues and delete previous comments from linked_issues action while listening %p event",
-  async (eventName, result) => {
+  "should return the number of linked issues and their repos and delete previous comments from linked_issues action while listening %p event",
+  async (eventName, n, issueArray) => {
     // eslint-disable-next-line
-  github.context = {
+    github.context = {
       eventName,
       payload: {
         action: "opened",
@@ -44,8 +44,9 @@ test.each([
 
     await run();
 
-    expect(core.setOutput).toHaveBeenCalledWith("linked_issues_count", result);
-    expect(core.debug).toHaveBeenCalledWith(`${result} Comment(s) deleted.`);
+    expect(core.setOutput).toHaveBeenNthCalledWith(1, "linked_issues_count", n);
+    expect(core.setOutput).toHaveBeenNthCalledWith(2, "issues", issueArray);
+    expect(core.debug).toHaveBeenCalledWith(`1 Comment(s) deleted.`);
   }
 );
 
@@ -59,7 +60,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
     }
   }`.replace(/\s/g, "");
     // eslint-disable-next-line
-  github.context = {
+    github.context = {
       eventName,
       payload: {
         action: "opened",
@@ -129,7 +130,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
     }
   }`.replace(/\s/g, "");
     // eslint-disable-next-line
-  github.context = {
+    github.context = {
       eventName,
       payload: {
         action: "opened",
@@ -194,7 +195,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
   "should not add new comment when core input comment is not defined while listening %p event",
   async (eventName) => {
     // eslint-disable-next-line
-  github.context = {
+    github.context = {
       eventName,
       payload: {
         action: "opened",
@@ -209,7 +210,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
     };
 
     // eslint-disable-next-line
-  github.getOctokit = jest.fn(() => {
+    github.getOctokit = jest.fn(() => {
       return {
         paginate: jest.fn(),
         graphql: jest.fn(() => {
@@ -230,7 +231,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
     });
 
     // eslint-disable-next-line
-  core.getInput.mockReturnValue("");
+    core.getInput.mockReturnValue("");
 
     await run();
 

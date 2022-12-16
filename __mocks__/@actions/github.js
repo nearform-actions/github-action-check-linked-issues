@@ -19,7 +19,21 @@ module.exports = {
               pullRequest: {
                 id: "fake-pr-id",
                 closingIssuesReferences: {
-                  totalCount: 1,
+                  totalCount: 2,
+                  nodes: [
+                    {
+                      number: 12345,
+                      repository: {
+                        nameWithOwner: "test/repo",
+                      },
+                    },
+                    {
+                      number: 456,
+                      repository: {
+                        nameWithOwner: "another/repository",
+                      },
+                    },
+                  ],
                 },
               },
             },

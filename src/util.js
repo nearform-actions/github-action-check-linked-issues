@@ -67,8 +67,14 @@ export function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
       repository(owner: $owner, name: $name) {
         pullRequest(number: $number) {
           id
-          closingIssuesReferences {
+          closingIssuesReferences(first: 100) {
             totalCount
+            nodes {
+              number
+              repository {
+                nameWithOwner
+              }
+            }
           }
         }
       }
