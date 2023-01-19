@@ -14,6 +14,8 @@ If you enable the `comments` option (enabled by default) we recommend to listen 
 `pull_request_target` event has write permission to the target repository allowing external forks to create comments.
 
 ```yaml
+name: Check linked issues
+
 on:
   pull_request_target:
     types: [opened, edited, reopened, synchronize]
