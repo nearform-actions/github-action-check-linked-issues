@@ -4252,6 +4252,57 @@ exports.request = request;
 
 /***/ }),
 
+/***/ 2183:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+
+
+const core = __nccwpck_require__(2186)
+
+/**
+ * Displays warning message if the action reference is pinned to master/main
+ */
+function logActionRefWarning() {
+  const actionRef = process.env.GITHUB_ACTION_REF
+  const repoName = process.env.GITHUB_ACTION_REPOSITORY
+
+  if (actionRef === 'main' || actionRef === 'master') {
+    core.warning(
+      `${repoName} is pinned at HEAD. We strongly ` +
+        `advise against pinning to "@${actionRef}" as it may be unstable. Please ` +
+        `update your GitHub Action YAML from:\n\n` +
+        `    uses: '${repoName}@${actionRef}'\n\n` +
+        `to:\n\n` +
+        `    uses: '${repoName}@<release/tag version>'\n\n` +
+        `Alternatively, you can pin to any git tag or git SHA in the ` +
+        `repository.`
+    )
+  }
+}
+
+/**
+ * Displays warning message if the repository is under the nearform organisation
+ */
+function logRepoWarning() {
+  const repoName = process.env.GITHUB_ACTION_REPOSITORY
+  const repoOrg = repoName.split('/')[0]
+
+  if (repoOrg != 'nearform-actions') {
+    core.warning(
+      `'${repoOrg}' is no longer a valid organisation for this action.` +
+        `Please update it to be under the 'nearform-actions' organisation.`
+    )
+  }
+}
+
+module.exports = {
+  logActionRefWarning,
+  logRepoWarning
+}
+
+
+/***/ }),
+
 /***/ 9417:
 /***/ ((module) => {
 
@@ -13008,6 +13059,8 @@ var __webpack_exports__ = {};
 var core = __nccwpck_require__(2186);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(5438);
+// EXTERNAL MODULE: ./node_modules/actions-toolkit/src/index.js
+var src = __nccwpck_require__(2183);
 ;// CONCATENATED MODULE: ./src/constants.js
 const ERROR_MESSAGE =
   "No linked issues found. Please add the corresponding issues in the pull request description.";
@@ -14109,9 +14162,13 @@ function deleteLinkedIssueComments(octokit, comments) {
 
 
 
+
 const format = (obj) => JSON.stringify(obj, undefined, 2);
 
 async function run() {
+  src.logActionRefWarning();
+  src.logRepoWarning();
+
   core.info(`
     *** ACTION RUN - START ***
     `);

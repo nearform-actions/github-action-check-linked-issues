@@ -5,6 +5,7 @@ import { ERROR_MESSAGE } from "./constants.js";
 
 jest.mock("@actions/core");
 jest.mock("@actions/github");
+jest.mock("actions-toolkit");
 
 afterEach(() => {
   jest.clearAllMocks();

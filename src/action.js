@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import * as toolkit from "actions-toolkit";
 
 import { ERROR_MESSAGE } from "./constants.js";
 import {
@@ -12,6 +13,9 @@ import {
 const format = (obj) => JSON.stringify(obj, undefined, 2);
 
 async function run() {
+  toolkit.logActionRefWarning();
+  toolkit.logRepoWarning();
+
   core.info(`
     *** ACTION RUN - START ***
     `);
