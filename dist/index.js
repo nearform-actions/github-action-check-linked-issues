@@ -4284,13 +4284,18 @@ function logActionRefWarning() {
  * Displays warning message if the repository is under the nearform organisation
  */
 function logRepoWarning() {
-  const repoName = process.env.GITHUB_ACTION_REPOSITORY
-  const repoOrg = repoName.split('/')[0]
+  const actionRepo = process.env.GITHUB_ACTION_REPOSITORY
+  const [repoOrg, repoName] = actionRepo.split('/')
+  const newOrg = 'nearform-actions'
 
-  if (repoOrg != 'nearform-actions') {
+  if (repoOrg != newOrg) {
     core.warning(
-      `'${repoOrg}' is no longer a valid organisation for this action.` +
-        `Please update it to be under the 'nearform-actions' organisation.`
+      `The '${repoName}' action, no longer exists under the '${repoOrg}' organisation.\n` +
+        `Please update it to '${newOrg}', you can do this\n` +
+        `by updating your Github Workflow file from:\n\n` +
+        `    uses: '${repoOrg}/${repoName}'\n\n` +
+        `to:\n\n` +
+        `    uses: '${newOrg}/${repoName}'\n\n`
     )
   }
 }
