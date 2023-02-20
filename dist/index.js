@@ -13082,6 +13082,57 @@ const minimatch = (p, pattern, options = {}) => {
     return new Minimatch(pattern, options).match(p);
 };
 /* harmony default export */ const mjs = (minimatch);
+// Optimized checking for the most common glob patterns.
+const starDotExtRE = /^\*+([^+@!?\*\[\(]*)$/;
+const starDotExtTest = (ext) => (f) => !f.startsWith('.') && f.endsWith(ext);
+const starDotExtTestDot = (ext) => (f) => f.endsWith(ext);
+const starDotExtTestNocase = (ext) => {
+    ext = ext.toLowerCase();
+    return (f) => !f.startsWith('.') && f.toLowerCase().endsWith(ext);
+};
+const starDotExtTestNocaseDot = (ext) => {
+    ext = ext.toLowerCase();
+    return (f) => f.toLowerCase().endsWith(ext);
+};
+const starDotStarRE = /^\*+\.\*+$/;
+const starDotStarTest = (f) => !f.startsWith('.') && f.includes('.');
+const starDotStarTestDot = (f) => f !== '.' && f !== '..' && f.includes('.');
+const dotStarRE = /^\.\*+$/;
+const dotStarTest = (f) => f !== '.' && f !== '..' && f.startsWith('.');
+const starRE = /^\*+$/;
+const starTest = (f) => f.length !== 0 && !f.startsWith('.');
+const starTestDot = (f) => f.length !== 0 && f !== '.' && f !== '..';
+const qmarksRE = /^\?+([^+@!?\*\[\(]*)?$/;
+const qmarksTestNocase = ([$0, ext = '']) => {
+    const noext = qmarksTestNoExt([$0]);
+    if (!ext)
+        return noext;
+    ext = ext.toLowerCase();
+    return (f) => noext(f) && f.toLowerCase().endsWith(ext);
+};
+const qmarksTestNocaseDot = ([$0, ext = '']) => {
+    const noext = qmarksTestNoExtDot([$0]);
+    if (!ext)
+        return noext;
+    ext = ext.toLowerCase();
+    return (f) => noext(f) && f.toLowerCase().endsWith(ext);
+};
+const qmarksTestDot = ([$0, ext = '']) => {
+    const noext = qmarksTestNoExtDot([$0]);
+    return !ext ? noext : (f) => noext(f) && f.endsWith(ext);
+};
+const qmarksTest = ([$0, ext = '']) => {
+    const noext = qmarksTestNoExt([$0]);
+    return !ext ? noext : (f) => noext(f) && f.endsWith(ext);
+};
+const qmarksTestNoExt = ([$0]) => {
+    const len = $0.length;
+    return (f) => f.length === len && !f.startsWith('.');
+};
+const qmarksTestNoExtDot = ([$0]) => {
+    const len = $0.length;
+    return (f) => f.length === len && f !== '.' && f !== '..';
+};
 /* c8 ignore start */
 const platform = typeof process === 'object' && process
     ? (typeof process.env === 'object' &&
@@ -13264,26 +13315,22 @@ class Minimatch {
         // step 1: figure out negation, etc.
         this.parseNegate();
         // step 2: expand braces
-        this.globSet = this.braceExpand();
+        this.globSet = [...new Set(this.braceExpand())];
         if (options.debug) {
             this.debug = (...args) => console.error(...args);
         }
         this.debug(this.pattern, this.globSet);
-        // step 3: now we have a set, so turn each one into a series of path-portion
-        // matching patterns.
+        // step 3: now we have a set, so turn each one into a series of
+        // path-portion matching patterns.
         // These will be regexps, except in the case of "**", which is
         // set to the GLOBSTAR object for globstar behavior,
         // and will not contain any / characters
+        //
+        // First, we preprocess to make the glob pattern sets a bit simpler
+        // and deduped.  There are some perf-killing patterns that can cause
+        // problems with a glob walk, but we can simplify them down a bit.
         const rawGlobParts = this.globSet.map(s => this.slashSplit(s));
-        // consecutive globstars are an unncessary perf killer
-        this.globParts = this.options.noglobstar
-            ? rawGlobParts
-            : rawGlobParts.map(parts => parts.reduce((set, part) => {
-                if (part !== '**' || set[set.length - 1] !== '**') {
-                    set.push(part);
-                }
-                return set;
-            }, []));
+        this.globParts = this.preprocess(rawGlobParts);
         this.debug(this.pattern, this.globParts);
         // glob --> regexps
         let set = this.globParts.map((s, _, __) => s.map(ss => this.parse(ss)));
@@ -13304,6 +13351,178 @@ class Minimatch {
             }
         }
         this.debug(this.pattern, this.set);
+    }
+    // various transforms to equivalent pattern sets that are
+    // faster to process in a filesystem walk.  The goal is to
+    // eliminate what we can, and push all ** patterns as far
+    // to the right as possible, even if it increases the number
+    // of patterns that we have to process.
+    preprocess(globParts) {
+        // if we're not in globstar mode, then turn all ** into *
+        if (this.options.noglobstar) {
+            for (let i = 0; i < globParts.length; i++) {
+                for (let j = 0; j < globParts[i].length; j++) {
+                    if (globParts[i][j] === '**') {
+                        globParts[i][j] = '*';
+                    }
+                }
+            }
+        }
+        globParts = this.firstPhasePreProcess(globParts);
+        globParts = this.secondPhasePreProcess(globParts);
+        return globParts;
+    }
+    // First phase: single-pattern processing
+    // <pre> is 1 or more portions
+    // <rest> is 1 or more portions
+    // <p> is any portion other than ., .., '', or **
+    // <e> is . or ''
+    //
+    // **/.. is *brutal* for filesystem walking performance, because
+    // it effectively resets the recursive walk each time it occurs,
+    // and ** cannot be reduced out by a .. pattern part like a regexp
+    // or most strings (other than .., ., and '') can be.
+    //
+    // <pre>/**/../<p>/<rest> -> {<pre>/../<p>/<rest>,<pre>/**/<p>/<rest>}
+    // <pre>/<e>/<rest> -> <pre>/<rest>
+    // <pre>/<p>/../<rest> -> <pre>/<rest>
+    // **/**/<rest> -> **/<rest>
+    //
+    // **/*/<rest> -> */**/<rest> <== not valid because ** doesn't follow
+    // this WOULD be allowed if ** did follow symlinks, or * didn't
+    firstPhasePreProcess(globParts) {
+        let didSomething = false;
+        do {
+            didSomething = false;
+            // <pre>/**/../<p>/<rest> -> {<pre>/../<p>/<rest>,<pre>/**/<p>/<rest>}
+            for (let parts of globParts) {
+                let gs = -1;
+                while (-1 !== (gs = parts.indexOf('**', gs + 1))) {
+                    let gss = gs;
+                    while (parts[gss + 1] === '**') {
+                        // <pre>/**/**/<rest> -> <pre>/**/<rest>
+                        gss++;
+                    }
+                    // eg, if gs is 2 and gss is 4, that means we have 3 **
+                    // parts, and can remove 2 of them.
+                    if (gss > gs) {
+                        parts.splice(gs + 1, gss - gs);
+                    }
+                    let next = parts[gs + 1];
+                    const p = parts[gs + 2];
+                    if (next !== '..')
+                        continue;
+                    if (!p || p === '.' || p === '..')
+                        continue;
+                    didSomething = true;
+                    // edit parts in place, and push the new one
+                    parts.splice(gs, 1);
+                    const other = parts.slice(0);
+                    other[gs] = '**';
+                    globParts.push(other);
+                    gs--;
+                }
+                // <pre>/<e>/<rest> -> <pre>/<rest>
+                if (!this.preserveMultipleSlashes) {
+                    for (let i = 1; i < parts.length - 1; i++) {
+                        const p = parts[i];
+                        // don't squeeze out UNC patterns
+                        if (i === 1 && p === '' && parts[0] === '')
+                            continue;
+                        if (p === '.' || p === '') {
+                            didSomething = true;
+                            parts.splice(i, 1);
+                            i--;
+                        }
+                    }
+                    if (parts[0] === '.') {
+                        didSomething = true;
+                        parts.shift();
+                    }
+                }
+                // <pre>/<p>/../<rest> -> <pre>/<rest>
+                let dd = 0;
+                while (-1 !== (dd = parts.indexOf('..', dd + 1))) {
+                    const p = parts[dd - 1];
+                    if (p && p !== '.' && p !== '..' && p !== '**') {
+                        didSomething = true;
+                        parts.splice(dd - 1, 2);
+                        if (parts.length === 0)
+                            parts.push('');
+                        dd -= 2;
+                    }
+                }
+            }
+        } while (didSomething);
+        return globParts;
+    }
+    // second phase: multi-pattern dedupes
+    // {<pre>/*/<rest>,<pre>/<p>/<rest>} -> <pre>/*/<rest>
+    // {<pre>/<rest>,<pre>/<rest>} -> <pre>/<rest>
+    // {<pre>/**/<rest>,<pre>/<rest>} -> <pre>/**/<rest>
+    //
+    // {<pre>/**/<rest>,<pre>/**/<p>/<rest>} -> <pre>/**/<rest>
+    // ^-- not valid because ** doens't follow symlinks
+    secondPhasePreProcess(globParts) {
+        for (let i = 0; i < globParts.length - 1; i++) {
+            for (let j = i + 1; j < globParts.length; j++) {
+                const matched = this.partsMatch(globParts[i], globParts[j], !this.preserveMultipleSlashes);
+                if (!matched)
+                    continue;
+                globParts[i] = matched;
+                globParts[j] = [];
+            }
+        }
+        return globParts.filter(gs => gs.length);
+    }
+    partsMatch(a, b, emptyGSMatch = false) {
+        let ai = 0;
+        let bi = 0;
+        let result = [];
+        let which = '';
+        while (ai < a.length && bi < b.length) {
+            if (a[ai] === b[bi]) {
+                result.push(which === 'b' ? b[bi] : a[ai]);
+                ai++;
+                bi++;
+            }
+            else if (emptyGSMatch && a[ai] === '**' && b[bi] === a[ai + 1]) {
+                result.push(a[ai]);
+                ai++;
+            }
+            else if (emptyGSMatch && b[bi] === '**' && a[ai] === b[bi + 1]) {
+                result.push(b[bi]);
+                bi++;
+            }
+            else if (a[ai] === '*' &&
+                b[bi] &&
+                !b[bi].startsWith('.') &&
+                b[bi] !== '**') {
+                if (which === 'b')
+                    return false;
+                which = 'a';
+                result.push(a[ai]);
+                ai++;
+                bi++;
+            }
+            else if (b[bi] === '*' &&
+                a[ai] &&
+                (this.options.dot || !a[ai].startsWith('.')) &&
+                a[ai] !== '**') {
+                if (which === 'a')
+                    return false;
+                which = 'b';
+                result.push(b[bi]);
+                ai++;
+                bi++;
+            }
+            else {
+                return false;
+            }
+        }
+        // if we fall out of the loop, it means they two are identical
+        // as long as their lengths match
+        return a.length === b.length && result;
     }
     parseNegate() {
         if (this.nonegate)
@@ -13513,14 +13732,43 @@ class Minimatch {
         assertValidPattern(pattern);
         const options = this.options;
         // shortcuts
-        if (pattern === '**') {
-            if (!options.noglobstar)
-                return GLOBSTAR;
-            else
-                pattern = '*';
-        }
+        if (pattern === '**')
+            return GLOBSTAR;
         if (pattern === '')
             return '';
+        // far and away, the most common glob pattern parts are
+        // *, *.*, and *.<ext>  Add a fast check method for those.
+        let m;
+        let fastTest = null;
+        if (isSub !== SUBPARSE) {
+            if ((m = pattern.match(starRE))) {
+                fastTest = options.dot ? starTestDot : starTest;
+            }
+            else if ((m = pattern.match(starDotExtRE))) {
+                fastTest = (options.nocase
+                    ? options.dot
+                        ? starDotExtTestNocaseDot
+                        : starDotExtTestNocase
+                    : options.dot
+                        ? starDotExtTestDot
+                        : starDotExtTest)(m[1]);
+            }
+            else if ((m = pattern.match(qmarksRE))) {
+                fastTest = (options.nocase
+                    ? options.dot
+                        ? qmarksTestNocaseDot
+                        : qmarksTestNocase
+                    : options.dot
+                        ? qmarksTestDot
+                        : qmarksTest)(m);
+            }
+            else if ((m = pattern.match(starDotStarRE))) {
+                fastTest = options.dot ? starDotStarTestDot : starDotStarTest;
+            }
+            else if ((m = pattern.match(dotStarRE))) {
+                fastTest = dotStarTest;
+            }
+        }
         let re = '';
         let hasMagic = false;
         let escaping = false;
@@ -13839,7 +14087,7 @@ class Minimatch {
             return [re, hasMagic];
         }
         // if it's nocase, and the lcase/uppercase don't match, it's magic
-        if (options.nocase && !hasMagic) {
+        if (options.nocase && !hasMagic && !options.nocaseMagicOnly) {
             hasMagic = pattern.toUpperCase() !== pattern.toLowerCase();
         }
         // skip the regexp for non-magical patterns
@@ -13850,10 +14098,17 @@ class Minimatch {
         }
         const flags = options.nocase ? 'i' : '';
         try {
-            return Object.assign(new RegExp('^' + re + '$', flags), {
-                _glob: pattern,
-                _src: re,
-            });
+            const ext = fastTest
+                ? {
+                    _glob: pattern,
+                    _src: re,
+                    test: fastTest,
+                }
+                : {
+                    _glob: pattern,
+                    _src: re,
+                };
+            return Object.assign(new RegExp('^' + re + '$', flags), ext);
             /* c8 ignore start */
         }
         catch (er) {
