@@ -4258,6 +4258,8 @@ exports.request = request;
 
 
 const core = __nccwpck_require__(2186)
+const newOrg = 'nearform-actions'
+const oldOrg = 'nearform'
 
 /**
  * Displays warning message if the action reference is pinned to master/main
@@ -4285,19 +4287,31 @@ function logActionRefWarning() {
  */
 function logRepoWarning() {
   const actionRepo = process.env.GITHUB_ACTION_REPOSITORY
-  const [repoOrg, repoName] = actionRepo.split('/')
-  const newOrg = 'nearform-actions'
+  const action = process.env.GITHUB_ACTION
 
-  if (repoOrg != newOrg) {
-    core.warning(
-      `The '${repoName}' action, no longer exists under the '${repoOrg}' organisation.\n` +
-        `Please update it to '${newOrg}', you can do this\n` +
-        `by updating your Github Workflow file from:\n\n` +
-        `    uses: '${repoOrg}/${repoName}'\n\n` +
-        `to:\n\n` +
-        `    uses: '${newOrg}/${repoName}'\n\n`
-    )
+  const [repoOrg, repoName] = actionRepo.split('/')
+  let parentActionOrg, parentActionRepo
+  ;[, parentActionOrg] = action.match(/__(.*)_/)
+  parentActionOrg = parentActionOrg.replace('_', '-')
+  ;[parentActionRepo] = action.match(/([^_]+$)/)
+
+  if (repoOrg === oldOrg || parentActionOrg === oldOrg) {
+    return warning(repoOrg === oldOrg ? repoName : parentActionRepo)
   }
+}
+
+/**
+ * Simple function to avoid the repetition of the message
+ */
+function warning(repoName) {
+  return core.warning(
+    `The '${repoName}' action, no longer exists under the '${oldOrg}' organisation.\n` +
+      `Please update it to '${newOrg}', you can do this\n` +
+      `by updating your Github Workflow file from:\n\n` +
+      `    uses: '${oldOrg}/${repoName}'\n\n` +
+      `to:\n\n` +
+      `    uses: '${newOrg}/${repoName}'\n\n`
+  )
 }
 
 module.exports = {
@@ -13072,7 +13086,147 @@ const ERROR_MESSAGE =
 
 // EXTERNAL MODULE: ./node_modules/minimatch/node_modules/brace-expansion/index.js
 var brace_expansion = __nccwpck_require__(8184);
+;// CONCATENATED MODULE: ./node_modules/minimatch/dist/mjs/brace-expressions.js
+// translate the various posix character classes into unicode properties
+// this works across all unicode locales
+// { <posix class>: [<translation>, /u flag required, negated]
+const posixClasses = {
+    '[:alnum:]': ['\\p{L}\\p{Nl}\\p{Nd}', true],
+    '[:alpha:]': ['\\p{L}\\p{Nl}', true],
+    '[:ascii:]': ['\\x' + '00-\\x' + '7f', false],
+    '[:blank:]': ['\\p{Zs}\\t', true],
+    '[:cntrl:]': ['\\p{Cc}', true],
+    '[:digit:]': ['\\p{Nd}', true],
+    '[:graph:]': ['\\p{Z}\\p{C}', true, true],
+    '[:lower:]': ['\\p{Ll}', true],
+    '[:print:]': ['\\p{C}', true],
+    '[:punct:]': ['\\p{P}', true],
+    '[:space:]': ['\\p{Z}\\t\\r\\n\\v\\f', true],
+    '[:upper:]': ['\\p{Lu}', true],
+    '[:word:]': ['\\p{L}\\p{Nl}\\p{Nd}\\p{Pc}', true],
+    '[:xdigit:]': ['A-Fa-f0-9', false],
+};
+// only need to escape a few things inside of brace expressions
+const regExpEscape = (s) => s.replace(/[[\]\\-]/g, '\\$&');
+const rangesToString = (ranges) => {
+    return (ranges
+        // .map(r => r.replace(/[[\]]/g, '\\$&').replace(/^-/, '\\-'))
+        .join(''));
+};
+// takes a glob string at a posix brace expression, and returns
+// an equivalent regular expression source, and boolean indicating
+// whether the /u flag needs to be applied, and the number of chars
+// consumed to parse the character class.
+// This also removes out of order ranges, and returns ($.) if the
+// entire class just no good.
+const parseClass = (glob, position) => {
+    const pos = position;
+    /* c8 ignore start */
+    if (glob.charAt(pos) !== '[') {
+        throw new Error('not in a brace expression');
+    }
+    /* c8 ignore stop */
+    const ranges = [];
+    const negs = [];
+    let i = pos + 1;
+    let sawStart = false;
+    let uflag = false;
+    let escaping = false;
+    let negate = false;
+    let endPos = pos;
+    let rangeStart = '';
+    WHILE: while (i < glob.length) {
+        const c = glob.charAt(i);
+        if ((c === '!' || c === '^') && i === pos + 1) {
+            negate = true;
+            i++;
+            continue;
+        }
+        if (c === ']' && sawStart && !escaping) {
+            endPos = i + 1;
+            break;
+        }
+        sawStart = true;
+        if (c === '\\') {
+            if (!escaping) {
+                escaping = true;
+                i++;
+                continue;
+            }
+            // escaped \ char, fall through and treat like normal char
+        }
+        if (c === '[' && !escaping) {
+            // either a posix class, a collation equivalent, or just a [
+            for (const [cls, [unip, u, neg]] of Object.entries(posixClasses)) {
+                if (glob.startsWith(cls, i)) {
+                    // invalid, [a-[] is fine, but not [a-[:alpha]]
+                    if (rangeStart) {
+                        return ['$.', false, glob.length - pos];
+                    }
+                    i += cls.length;
+                    if (neg)
+                        negs.push(unip);
+                    else
+                        ranges.push(unip);
+                    uflag = uflag || u;
+                    continue WHILE;
+                }
+            }
+        }
+        // now it's just a normal character, effectively
+        escaping = false;
+        if (rangeStart) {
+            // throw this range away if it's not valid, but others
+            // can still match.
+            if (c > rangeStart) {
+                ranges.push(regExpEscape(rangeStart) + '-' + regExpEscape(c));
+            }
+            else if (c === rangeStart) {
+                ranges.push(regExpEscape(c));
+            }
+            rangeStart = '';
+            i++;
+            continue;
+        }
+        // now might be the start of a range.
+        // can be either c-d or c-] or c<more...>] or c] at this point
+        if (glob.startsWith('-]', i + 1)) {
+            ranges.push(regExpEscape(c + '-'));
+            i += 2;
+            continue;
+        }
+        if (glob.startsWith('-', i + 1)) {
+            rangeStart = c;
+            i += 2;
+            continue;
+        }
+        // not the start of a range, just a single character
+        ranges.push(regExpEscape(c));
+        i++;
+    }
+    if (endPos < i) {
+        // didn't see the end of the class, not a valid class,
+        // but might still be valid as a literal match.
+        return ['', false, 0];
+    }
+    // if we got no ranges and no negates, then we have a range that
+    // cannot possibly match anything, and that poisons the whole glob
+    if (!ranges.length && !negs.length) {
+        return ['$.', false, glob.length - pos];
+    }
+    const sranges = '[' + (negate ? '^' : '') + rangesToString(ranges) + ']';
+    const snegs = '[' + (negate ? '' : '^') + rangesToString(negs) + ']';
+    const comb = ranges.length && negs.length
+        ? '(' + sranges + '|' + snegs + ')'
+        : ranges.length
+            ? sranges
+            : snegs;
+    return [comb, uflag, endPos - pos];
+};
+//# sourceMappingURL=brace-expressions.js.map
 ;// CONCATENATED MODULE: ./node_modules/minimatch/dist/mjs/index.js
+
+
 const minimatch = (p, pattern, options = {}) => {
     assertValidPattern(pattern);
     // shortcut: comments match nothing.
@@ -13134,20 +13288,21 @@ const qmarksTestNoExtDot = ([$0]) => {
     return (f) => f.length === len && f !== '.' && f !== '..';
 };
 /* c8 ignore start */
-const platform = typeof process === 'object' && process
+const defaultPlatform = (typeof process === 'object' && process
     ? (typeof process.env === 'object' &&
         process.env &&
         process.env.__MINIMATCH_TESTING_PLATFORM__) ||
         process.platform
-    : 'posix';
-const isWindows = platform === 'win32';
-const path = isWindows ? { sep: '\\' } : { sep: '/' };
+    : 'posix');
+const path = {
+    win32: { sep: '\\' },
+    posix: { sep: '/' },
+};
 /* c8 ignore stop */
-const sep = path.sep;
+const sep = defaultPlatform === 'win32' ? path.win32.sep : path.posix.sep;
 minimatch.sep = sep;
 const GLOBSTAR = Symbol('globstar **');
 minimatch.GLOBSTAR = GLOBSTAR;
-
 const plTypes = {
     '!': { open: '(?:(?!(?:', close: '))[^/]*?)' },
     '?': { open: '(?:', close: ')?' },
@@ -13245,7 +13400,6 @@ const assertValidPattern = (pattern) => {
 // when it is the *only* thing in a path portion.  Otherwise, any series
 // of * is equivalent to a single *.  Globstar behavior is enabled by
 // default, and can be disabled by setting options.noglobstar.
-const SUBPARSE = Symbol('subparse');
 const makeRe = (pattern, options = {}) => new Minimatch(pattern, options).makeRe();
 minimatch.makeRe = makeRe;
 const match = (list, pattern, options = {}) => {
@@ -13259,9 +13413,8 @@ const match = (list, pattern, options = {}) => {
 minimatch.match = match;
 // replace stuff like \* with *
 const globUnescape = (s) => s.replace(/\\(.)/g, '$1');
-const charUnescape = (s) => s.replace(/\\([^-\]])/g, '$1');
-const regExpEscape = (s) => s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-const braExpEscape = (s) => s.replace(/[[\]\\]/g, '\\$&');
+const globMagic = /[?*]|[+@!]\(.*?\)|\[|\]/;
+const mjs_regExpEscape = (s) => s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 class Minimatch {
     options;
     set;
@@ -13275,12 +13428,18 @@ class Minimatch {
     partial;
     globSet;
     globParts;
+    nocase;
+    isWindows;
+    platform;
+    windowsNoMagicRoot;
     regexp;
     constructor(pattern, options = {}) {
         assertValidPattern(pattern);
         options = options || {};
         this.options = options;
         this.pattern = pattern;
+        this.platform = options.platform || defaultPlatform;
+        this.isWindows = this.platform === 'win32';
         this.windowsPathsNoEscape =
             !!options.windowsPathsNoEscape || options.allowWindowsEscape === false;
         if (this.windowsPathsNoEscape) {
@@ -13293,6 +13452,11 @@ class Minimatch {
         this.comment = false;
         this.empty = false;
         this.partial = !!options.partial;
+        this.nocase = !!this.options.nocase;
+        this.windowsNoMagicRoot =
+            options.windowsNoMagicRoot !== undefined
+                ? options.windowsNoMagicRoot
+                : !!(this.isWindows && this.nocase);
         this.globSet = [];
         this.globParts = [];
         this.set = [];
@@ -13333,12 +13497,28 @@ class Minimatch {
         this.globParts = this.preprocess(rawGlobParts);
         this.debug(this.pattern, this.globParts);
         // glob --> regexps
-        let set = this.globParts.map((s, _, __) => s.map(ss => this.parse(ss)));
+        let set = this.globParts.map((s, _, __) => {
+            if (this.isWindows && this.windowsNoMagicRoot) {
+                // check if it's a drive or unc path.
+                const isUNC = s[0] === '' &&
+                    s[1] === '' &&
+                    (s[2] === '?' || !globMagic.test(s[2])) &&
+                    !globMagic.test(s[3]);
+                const isDrive = /^[a-z]:/i.test(s[0]);
+                if (isUNC) {
+                    return [...s.slice(0, 4), ...s.slice(4).map(ss => this.parse(ss))];
+                }
+                else if (isDrive) {
+                    return [s[0], ...s.slice(1).map(ss => this.parse(ss))];
+                }
+            }
+            return s.map(ss => this.parse(ss));
+        });
         this.debug(this.pattern, set);
         // filter out everything that didn't compile properly.
         this.set = set.filter(s => s.indexOf(false) === -1);
         // do not treat the ? in UNC paths as magic
-        if (isWindows) {
+        if (this.isWindows) {
             for (let i = 0; i < this.set.length; i++) {
                 const p = this.set[i];
                 if (p[0] === '' &&
@@ -13368,9 +13548,96 @@ class Minimatch {
                 }
             }
         }
-        globParts = this.firstPhasePreProcess(globParts);
-        globParts = this.secondPhasePreProcess(globParts);
+        const { optimizationLevel = 1 } = this.options;
+        if (optimizationLevel >= 2) {
+            // aggressive optimization for the purpose of fs walking
+            globParts = this.firstPhasePreProcess(globParts);
+            globParts = this.secondPhasePreProcess(globParts);
+        }
+        else if (optimizationLevel >= 1) {
+            // just basic optimizations to remove some .. parts
+            globParts = this.levelOneOptimize(globParts);
+        }
+        else {
+            globParts = this.adjascentGlobstarOptimize(globParts);
+        }
         return globParts;
+    }
+    // just get rid of adjascent ** portions
+    adjascentGlobstarOptimize(globParts) {
+        return globParts.map(parts => {
+            let gs = -1;
+            while (-1 !== (gs = parts.indexOf('**', gs + 1))) {
+                let i = gs;
+                while (parts[i + 1] === '**') {
+                    i++;
+                }
+                if (i !== gs) {
+                    parts.splice(gs, i - gs);
+                }
+            }
+            return parts;
+        });
+    }
+    // get rid of adjascent ** and resolve .. portions
+    levelOneOptimize(globParts) {
+        return globParts.map(parts => {
+            parts = parts.reduce((set, part) => {
+                const prev = set[set.length - 1];
+                if (part === '**' && prev === '**') {
+                    return set;
+                }
+                if (part === '..') {
+                    if (prev && prev !== '..' && prev !== '.' && prev !== '**') {
+                        set.pop();
+                        return set;
+                    }
+                }
+                set.push(part);
+                return set;
+            }, []);
+            return parts.length === 0 ? [''] : parts;
+        });
+    }
+    levelTwoFileOptimize(parts) {
+        if (!Array.isArray(parts)) {
+            parts = this.slashSplit(parts);
+        }
+        let didSomething = false;
+        do {
+            didSomething = false;
+            // <pre>/<e>/<rest> -> <pre>/<rest>
+            if (!this.preserveMultipleSlashes) {
+                for (let i = 1; i < parts.length - 1; i++) {
+                    const p = parts[i];
+                    // don't squeeze out UNC patterns
+                    if (i === 1 && p === '' && parts[0] === '')
+                        continue;
+                    if (p === '.' || p === '') {
+                        didSomething = true;
+                        parts.splice(i, 1);
+                        i--;
+                    }
+                }
+                if (parts[0] === '.' &&
+                    parts.length === 2 &&
+                    (parts[1] === '.' || parts[1] === '')) {
+                    didSomething = true;
+                    parts.pop();
+                }
+            }
+            // <pre>/<p>/../<rest> -> <pre>/<rest>
+            let dd = 0;
+            while (-1 !== (dd = parts.indexOf('..', dd + 1))) {
+                const p = parts[dd - 1];
+                if (p && p !== '.' && p !== '..' && p !== '**') {
+                    didSomething = true;
+                    parts.splice(dd - 1, 2);
+                    dd -= 2;
+                }
+            }
+        } while (didSomething);
+        return parts.length === 0 ? [''] : parts;
     }
     // First phase: single-pattern processing
     // <pre> is 1 or more portions
@@ -13383,7 +13650,7 @@ class Minimatch {
     // and ** cannot be reduced out by a .. pattern part like a regexp
     // or most strings (other than .., ., and '') can be.
     //
-    // <pre>/**/../<p>/<rest> -> {<pre>/../<p>/<rest>,<pre>/**/<p>/<rest>}
+    // <pre>/**/../<p>/<p>/<rest> -> {<pre>/../<p>/<p>/<rest>,<pre>/**/<p>/<p>/<rest>}
     // <pre>/<e>/<rest> -> <pre>/<rest>
     // <pre>/<p>/../<rest> -> <pre>/<rest>
     // **/**/<rest> -> **/<rest>
@@ -13394,7 +13661,7 @@ class Minimatch {
         let didSomething = false;
         do {
             didSomething = false;
-            // <pre>/**/../<p>/<rest> -> {<pre>/../<p>/<rest>,<pre>/**/<p>/<rest>}
+            // <pre>/**/../<p>/<p>/<rest> -> {<pre>/../<p>/<p>/<rest>,<pre>/**/<p>/<p>/<rest>}
             for (let parts of globParts) {
                 let gs = -1;
                 while (-1 !== (gs = parts.indexOf('**', gs + 1))) {
@@ -13410,10 +13677,17 @@ class Minimatch {
                     }
                     let next = parts[gs + 1];
                     const p = parts[gs + 2];
+                    const p2 = parts[gs + 3];
                     if (next !== '..')
                         continue;
-                    if (!p || p === '.' || p === '..')
+                    if (!p ||
+                        p === '.' ||
+                        p === '..' ||
+                        !p2 ||
+                        p2 === '.' ||
+                        p2 === '..') {
                         continue;
+                    }
                     didSomething = true;
                     // edit parts in place, and push the new one
                     parts.splice(gs, 1);
@@ -13435,9 +13709,11 @@ class Minimatch {
                             i--;
                         }
                     }
-                    if (parts[0] === '.') {
+                    if (parts[0] === '.' &&
+                        parts.length === 2 &&
+                        (parts[1] === '.' || parts[1] === '')) {
                         didSomething = true;
-                        parts.shift();
+                        parts.pop();
                     }
                 }
                 // <pre>/<p>/../<rest> -> <pre>/<rest>
@@ -13446,7 +13722,9 @@ class Minimatch {
                     const p = parts[dd - 1];
                     if (p && p !== '.' && p !== '..' && p !== '**') {
                         didSomething = true;
-                        parts.splice(dd - 1, 2);
+                        const needDot = dd === 1 && parts[dd + 1] === '**';
+                        const splin = needDot ? ['.'] : [];
+                        parts.splice(dd - 1, 2, ...splin);
                         if (parts.length === 0)
                             parts.push('');
                         dd -= 2;
@@ -13496,7 +13774,7 @@ class Minimatch {
             }
             else if (a[ai] === '*' &&
                 b[bi] &&
-                !b[bi].startsWith('.') &&
+                (this.options.dot || !b[bi].startsWith('.')) &&
                 b[bi] !== '**') {
                 if (which === 'b')
                     return false;
@@ -13547,7 +13825,7 @@ class Minimatch {
         const options = this.options;
         // a UNC pattern like //?/c:/* can match a path like c:/x
         // and vice versa
-        if (isWindows) {
+        if (this.isWindows) {
             const fileUNC = file[0] === '' &&
                 file[1] === '' &&
                 file[2] === '?' &&
@@ -13580,6 +13858,12 @@ class Minimatch {
                     file = file.slice(3);
                 }
             }
+        }
+        // resolve and reduce . and .. portions in the file as well.
+        // dont' need to do the second phase, because it's only one string[]
+        const { optimizationLevel = 1 } = this.options;
+        if (optimizationLevel >= 2) {
+            file = this.levelTwoFileOptimize(file);
         }
         this.debug('matchOne', this, { file, pattern });
         this.debug('matchOne', file.length, pattern.length);
@@ -13728,7 +14012,7 @@ class Minimatch {
     braceExpand() {
         return braceExpand(this.pattern, this.options);
     }
-    parse(pattern, isSub) {
+    parse(pattern) {
         assertValidPattern(pattern);
         const options = this.options;
         // shortcuts
@@ -13740,34 +14024,32 @@ class Minimatch {
         // *, *.*, and *.<ext>  Add a fast check method for those.
         let m;
         let fastTest = null;
-        if (isSub !== SUBPARSE) {
-            if ((m = pattern.match(starRE))) {
-                fastTest = options.dot ? starTestDot : starTest;
-            }
-            else if ((m = pattern.match(starDotExtRE))) {
-                fastTest = (options.nocase
-                    ? options.dot
-                        ? starDotExtTestNocaseDot
-                        : starDotExtTestNocase
-                    : options.dot
-                        ? starDotExtTestDot
-                        : starDotExtTest)(m[1]);
-            }
-            else if ((m = pattern.match(qmarksRE))) {
-                fastTest = (options.nocase
-                    ? options.dot
-                        ? qmarksTestNocaseDot
-                        : qmarksTestNocase
-                    : options.dot
-                        ? qmarksTestDot
-                        : qmarksTest)(m);
-            }
-            else if ((m = pattern.match(starDotStarRE))) {
-                fastTest = options.dot ? starDotStarTestDot : starDotStarTest;
-            }
-            else if ((m = pattern.match(dotStarRE))) {
-                fastTest = dotStarTest;
-            }
+        if ((m = pattern.match(starRE))) {
+            fastTest = options.dot ? starTestDot : starTest;
+        }
+        else if ((m = pattern.match(starDotExtRE))) {
+            fastTest = (options.nocase
+                ? options.dot
+                    ? starDotExtTestNocaseDot
+                    : starDotExtTestNocase
+                : options.dot
+                    ? starDotExtTestDot
+                    : starDotExtTest)(m[1]);
+        }
+        else if ((m = pattern.match(qmarksRE))) {
+            fastTest = (options.nocase
+                ? options.dot
+                    ? qmarksTestNocaseDot
+                    : qmarksTestNocase
+                : options.dot
+                    ? qmarksTestDot
+                    : qmarksTest)(m);
+        }
+        else if ((m = pattern.match(starDotStarRE))) {
+            fastTest = options.dot ? starDotStarTestDot : starDotStarTest;
+        }
+        else if ((m = pattern.match(dotStarRE))) {
+            fastTest = dotStarTest;
         }
         let re = '';
         let hasMagic = false;
@@ -13776,12 +14058,8 @@ class Minimatch {
         const patternListStack = [];
         const negativeLists = [];
         let stateChar = false;
-        let inClass = false;
-        let reClassStart = -1;
-        let classStart = -1;
-        let cs;
+        let uflag = false;
         let pl;
-        let sp;
         // . and .. never match anything that doesn't start with .,
         // even when options.dot is set.  However, if the pattern
         // starts with ., then traversal patterns can match.
@@ -13844,10 +14122,6 @@ class Minimatch {
                 }
                 /* c8 ignore stop */
                 case '\\':
-                    if (inClass && pattern.charAt(i + 1) === '-') {
-                        re += c;
-                        continue;
-                    }
                     clearStateChar();
                     escaping = true;
                     continue;
@@ -13859,15 +14133,6 @@ class Minimatch {
                 case '@':
                 case '!':
                     this.debug('%s\t%s %s %j <-- stateChar', pattern, i, re, c);
-                    // all of those are literals inside a class, except that
-                    // the glob [!a] means [^a] in regexp
-                    if (inClass) {
-                        this.debug('  in class');
-                        if (c === '!' && i === classStart + 1)
-                            c = '^';
-                        re += c;
-                        continue;
-                    }
                     // if we already have a stateChar, then it means
                     // that there was something like ** or +? in there.
                     // Handle the stateChar, then proceed with this one.
@@ -13881,10 +14146,6 @@ class Minimatch {
                         clearStateChar();
                     continue;
                 case '(': {
-                    if (inClass) {
-                        re += '(';
-                        continue;
-                    }
                     if (!stateChar) {
                         re += '\\(';
                         continue;
@@ -13911,7 +14172,7 @@ class Minimatch {
                 }
                 case ')': {
                     const plEntry = patternListStack[patternListStack.length - 1];
-                    if (inClass || !plEntry) {
+                    if (!plEntry) {
                         re += '\\)';
                         continue;
                     }
@@ -13930,7 +14191,7 @@ class Minimatch {
                 }
                 case '|': {
                     const plEntry = patternListStack[patternListStack.length - 1];
-                    if (inClass || !plEntry) {
+                    if (!plEntry) {
                         re += '\\|';
                         continue;
                     }
@@ -13947,67 +14208,27 @@ class Minimatch {
                 case '[':
                     // swallow any state-tracking char before the [
                     clearStateChar();
-                    if (inClass) {
-                        re += '\\' + c;
-                        continue;
+                    const [src, needUflag, consumed] = parseClass(pattern, i);
+                    if (consumed) {
+                        re += src;
+                        uflag = uflag || needUflag;
+                        i += consumed - 1;
+                        hasMagic = true;
                     }
-                    inClass = true;
-                    classStart = i;
-                    reClassStart = re.length;
-                    re += c;
+                    else {
+                        re += '\\[';
+                    }
                     continue;
                 case ']':
-                    //  a right bracket shall lose its special
-                    //  meaning and represent itself in
-                    //  a bracket expression if it occurs
-                    //  first in the list.  -- POSIX.2 2.8.3.2
-                    if (i === classStart + 1 || !inClass) {
-                        re += '\\' + c;
-                        continue;
-                    }
-                    // split where the last [ was, make sure we don't have
-                    // an invalid re. if so, re-walk the contents of the
-                    // would-be class to re-translate any characters that
-                    // were passed through as-is
-                    // TODO: It would probably be faster to determine this
-                    // without a try/catch and a new RegExp, but it's tricky
-                    // to do safely.  For now, this is safe and works.
-                    cs = pattern.substring(classStart + 1, i);
-                    try {
-                        RegExp('[' + braExpEscape(charUnescape(cs)) + ']');
-                        // looks good, finish up the class.
-                        re += c;
-                    }
-                    catch (er) {
-                        // out of order ranges in JS are errors, but in glob syntax,
-                        // they're just a range that matches nothing.
-                        re = re.substring(0, reClassStart) + '(?:$.)'; // match nothing ever
-                    }
-                    hasMagic = true;
-                    inClass = false;
+                    re += '\\' + c;
                     continue;
                 default:
                     // swallow any state char that wasn't consumed
                     clearStateChar();
-                    if (reSpecials[c] && !(c === '^' && inClass)) {
-                        re += '\\';
-                    }
-                    re += c;
+                    re += mjs_regExpEscape(c);
                     break;
             } // switch
         } // for
-        // handle the case where we left a class open.
-        // "[abc" is valid, equivalent to "\[abc"
-        if (inClass) {
-            // split where the last [ was, and escape it
-            // this is a huge pita.  We now have to re-walk
-            // the contents of the would-be class to re-translate
-            // any characters that were passed through as-is
-            cs = pattern.slice(classStart + 1);
-            sp = this.parse(cs, SUBPARSE);
-            re = re.substring(0, reClassStart) + '\\[' + sp[0];
-            hasMagic = hasMagic || sp[1];
-        }
         // handle the case where we had a +( thing at the *end*
         // of the pattern.
         // each pattern list stack adds 3 chars, and we need to go through
@@ -14070,7 +14291,7 @@ class Minimatch {
                 cleanAfter = cleanAfter.replace(/\)[+*?]?/, '');
             }
             nlAfter = cleanAfter;
-            const dollar = nlAfter === '' && isSub !== SUBPARSE ? '(?:$|\\/)' : '';
+            const dollar = nlAfter === '' ? '(?:$|\\/)' : '';
             re = nlBefore + nlFirst + nlAfter + dollar + nlLast;
         }
         // if the re is not "" at this point, then we need to make sure
@@ -14082,10 +14303,6 @@ class Minimatch {
         if (addPatternStart) {
             re = patternStart() + re;
         }
-        // parsing just a piece of a larger pattern.
-        if (isSub === SUBPARSE) {
-            return [re, hasMagic];
-        }
         // if it's nocase, and the lcase/uppercase don't match, it's magic
         if (options.nocase && !hasMagic && !options.nocaseMagicOnly) {
             hasMagic = pattern.toUpperCase() !== pattern.toLowerCase();
@@ -14096,7 +14313,7 @@ class Minimatch {
         if (!hasMagic) {
             return globUnescape(pattern);
         }
-        const flags = options.nocase ? 'i' : '';
+        const flags = (options.nocase ? 'i' : '') + (uflag ? 'u' : '');
         try {
             const ext = fastTest
                 ? {
@@ -14152,7 +14369,7 @@ class Minimatch {
         let re = set
             .map(pattern => {
             const pp = pattern.map(p => typeof p === 'string'
-                ? regExpEscape(p)
+                ? mjs_regExpEscape(p)
                 : p === GLOBSTAR
                     ? GLOBSTAR
                     : p._src);
@@ -14206,7 +14423,7 @@ class Minimatch {
         if (this.preserveMultipleSlashes) {
             return p.split('/');
         }
-        else if (isWindows && /^\/\/[^\/]+/.test(p)) {
+        else if (this.isWindows && /^\/\/[^\/]+/.test(p)) {
             // add an extra '' for the one we lose
             return ['', ...p.split(/\/+/)];
         }
@@ -14229,8 +14446,8 @@ class Minimatch {
         }
         const options = this.options;
         // windows: need to use /, not \
-        if (path.sep !== '/') {
-            f = f.split(path.sep).join('/');
+        if (this.isWindows) {
+            f = f.split('\\').join('/');
         }
         // treat the test path as a set of pathparts.
         const ff = this.slashSplit(f);
