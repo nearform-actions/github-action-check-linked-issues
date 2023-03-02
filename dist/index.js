@@ -4287,16 +4287,18 @@ function logActionRefWarning() {
  */
 function logRepoWarning() {
   const actionRepo = process.env.GITHUB_ACTION_REPOSITORY
-  const action = process.env.GITHUB_ACTION
+  const actionPath = process.env.GITHUB_ACTION_PATH
+
+  // Handle composite actions
+  if (actionPath && actionPath.includes('/nearform/')) {
+    const actionRepoName = actionPath.split('/nearform/')[1]
+    return warning(actionRepoName)
+  }
 
   const [repoOrg, repoName] = actionRepo.split('/')
-  let parentActionOrg, parentActionRepo
-  ;[, parentActionOrg] = action.match(/__(.*)_/)
-  parentActionOrg = parentActionOrg.replace('_', '-')
-  ;[parentActionRepo] = action.match(/([^_]+$)/)
 
-  if (repoOrg === oldOrg || parentActionOrg === oldOrg) {
-    return warning(repoOrg === oldOrg ? repoName : parentActionRepo)
+  if (repoOrg === oldOrg) {
+    return warning(repoName)
   }
 }
 
@@ -13107,12 +13109,12 @@ const posixClasses = {
     '[:xdigit:]': ['A-Fa-f0-9', false],
 };
 // only need to escape a few things inside of brace expressions
-const regExpEscape = (s) => s.replace(/[[\]\\-]/g, '\\$&');
-const rangesToString = (ranges) => {
-    return (ranges
-        // .map(r => r.replace(/[[\]]/g, '\\$&').replace(/^-/, '\\-'))
-        .join(''));
-};
+// escapes: [ \ ] -
+const braceEscape = (s) => s.replace(/[[\]\\-]/g, '\\$&');
+// escape all regexp magic characters
+const regexpEscape = (s) => s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+// everything has already been escaped, we just have to join
+const rangesToString = (ranges) => ranges.join('');
 // takes a glob string at a posix brace expression, and returns
 // an equivalent regular expression source, and boolean indicating
 // whether the /u flag needs to be applied, and the number of chars
@@ -13161,7 +13163,7 @@ const parseClass = (glob, position) => {
                 if (glob.startsWith(cls, i)) {
                     // invalid, [a-[] is fine, but not [a-[:alpha]]
                     if (rangeStart) {
-                        return ['$.', false, glob.length - pos];
+                        return ['$.', false, glob.length - pos, true];
                     }
                     i += cls.length;
                     if (neg)
@@ -13179,10 +13181,10 @@ const parseClass = (glob, position) => {
             // throw this range away if it's not valid, but others
             // can still match.
             if (c > rangeStart) {
-                ranges.push(regExpEscape(rangeStart) + '-' + regExpEscape(c));
+                ranges.push(braceEscape(rangeStart) + '-' + braceEscape(c));
             }
             else if (c === rangeStart) {
-                ranges.push(regExpEscape(c));
+                ranges.push(braceEscape(c));
             }
             rangeStart = '';
             i++;
@@ -13191,7 +13193,7 @@ const parseClass = (glob, position) => {
         // now might be the start of a range.
         // can be either c-d or c-] or c<more...>] or c] at this point
         if (glob.startsWith('-]', i + 1)) {
-            ranges.push(regExpEscape(c + '-'));
+            ranges.push(braceEscape(c + '-'));
             i += 2;
             continue;
         }
@@ -13201,18 +13203,29 @@ const parseClass = (glob, position) => {
             continue;
         }
         // not the start of a range, just a single character
-        ranges.push(regExpEscape(c));
+        ranges.push(braceEscape(c));
         i++;
     }
     if (endPos < i) {
         // didn't see the end of the class, not a valid class,
         // but might still be valid as a literal match.
-        return ['', false, 0];
+        return ['', false, 0, false];
     }
     // if we got no ranges and no negates, then we have a range that
     // cannot possibly match anything, and that poisons the whole glob
     if (!ranges.length && !negs.length) {
-        return ['$.', false, glob.length - pos];
+        return ['$.', false, glob.length - pos, true];
+    }
+    // if we got one positive range, and it's a single character, then that's
+    // not actually a magic pattern, it's just that one literal character.
+    // we should not treat that as "magic", we should just return the literal
+    // character. [_] is a perfectly valid way to escape glob magic chars.
+    if (negs.length === 0 &&
+        ranges.length === 1 &&
+        /^\\?.$/.test(ranges[0]) &&
+        !negate) {
+        const r = ranges[0].length === 2 ? ranges[0].slice(-1) : ranges[0];
+        return [regexpEscape(r), false, endPos - pos, false];
     }
     const sranges = '[' + (negate ? '^' : '') + rangesToString(ranges) + ']';
     const snegs = '[' + (negate ? '' : '^') + rangesToString(negs) + ']';
@@ -13221,10 +13234,52 @@ const parseClass = (glob, position) => {
         : ranges.length
             ? sranges
             : snegs;
-    return [comb, uflag, endPos - pos];
+    return [comb, uflag, endPos - pos, true];
 };
 //# sourceMappingURL=brace-expressions.js.map
+;// CONCATENATED MODULE: ./node_modules/minimatch/dist/mjs/escape.js
+/**
+ * Escape all magic characters in a glob pattern.
+ *
+ * If the {@link windowsPathsNoEscape | GlobOptions.windowsPathsNoEscape}
+ * option is used, then characters are escaped by wrapping in `[]`, because
+ * a magic character wrapped in a character class can only be satisfied by
+ * that exact character.  In this mode, `\` is _not_ escaped, because it is
+ * not interpreted as a magic character, but instead as a path separator.
+ */
+const escape_escape = (s, { windowsPathsNoEscape = false, } = {}) => {
+    // don't need to escape +@! because we escape the parens
+    // that make those magic, and escaping ! as [!] isn't valid,
+    // because [!]] is a valid glob class meaning not ']'.
+    return windowsPathsNoEscape
+        ? s.replace(/[?*()[\]]/g, '[$&]')
+        : s.replace(/[?*()[\]\\]/g, '\\$&');
+};
+//# sourceMappingURL=escape.js.map
+;// CONCATENATED MODULE: ./node_modules/minimatch/dist/mjs/unescape.js
+/**
+ * Un-escape a string that has been escaped with {@link escape}.
+ *
+ * If the {@link windowsPathsNoEscape} option is used, then square-brace
+ * escapes are removed, but not backslash escapes.  For example, it will turn
+ * the string `'[*]'` into `*`, but it will not turn `'\\*'` into `'*'`,
+ * becuase `\` is a path separator in `windowsPathsNoEscape` mode.
+ *
+ * When `windowsPathsNoEscape` is not set, then both brace escapes and
+ * backslash escapes are removed.
+ *
+ * Slashes (and backslashes in `windowsPathsNoEscape` mode) cannot be escaped
+ * or unescaped.
+ */
+const unescape_unescape = (s, { windowsPathsNoEscape = false, } = {}) => {
+    return windowsPathsNoEscape
+        ? s.replace(/\[([^\/\\])\]/g, '$1')
+        : s.replace(/((?!\\).|^)\[([^\/\\])\]/g, '$1$2').replace(/\\([^\/])/g, '$1');
+};
+//# sourceMappingURL=unescape.js.map
 ;// CONCATENATED MODULE: ./node_modules/minimatch/dist/mjs/index.js
+
+
 
 
 const minimatch = (p, pattern, options = {}) => {
@@ -13349,6 +13404,8 @@ const defaults = (def) => {
                 return orig.defaults(ext(def, options)).Minimatch;
             }
         },
+        unescape: (s, options = {}) => orig.unescape(s, ext(def, options)),
+        escape: (s, options = {}) => orig.escape(s, ext(def, options)),
         filter: (pattern, options = {}) => orig.filter(pattern, ext(def, options)),
         defaults: (options) => orig.defaults(ext(def, options)),
         makeRe: (pattern, options = {}) => orig.makeRe(pattern, ext(def, options)),
@@ -13414,7 +13471,7 @@ minimatch.match = match;
 // replace stuff like \* with *
 const globUnescape = (s) => s.replace(/\\(.)/g, '$1');
 const globMagic = /[?*]|[+@!]\(.*?\)|\[|\]/;
-const mjs_regExpEscape = (s) => s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+const regExpEscape = (s) => s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 class Minimatch {
     options;
     set;
@@ -13462,6 +13519,18 @@ class Minimatch {
         this.set = [];
         // make the set of regexps etc.
         this.make();
+    }
+    hasMagic() {
+        if (this.options.magicalBraces && this.set.length > 1) {
+            return true;
+        }
+        for (const pattern of this.set) {
+            for (const part of pattern) {
+                if (typeof part !== 'string')
+                    return true;
+            }
+        }
+        return false;
     }
     debug(..._) { }
     make() {
@@ -14208,12 +14277,12 @@ class Minimatch {
                 case '[':
                     // swallow any state-tracking char before the [
                     clearStateChar();
-                    const [src, needUflag, consumed] = parseClass(pattern, i);
+                    const [src, needUflag, consumed, magic] = parseClass(pattern, i);
                     if (consumed) {
                         re += src;
                         uflag = uflag || needUflag;
                         i += consumed - 1;
-                        hasMagic = true;
+                        hasMagic = hasMagic || magic;
                     }
                     else {
                         re += '\\[';
@@ -14225,7 +14294,7 @@ class Minimatch {
                 default:
                     // swallow any state char that wasn't consumed
                     clearStateChar();
-                    re += mjs_regExpEscape(c);
+                    re += regExpEscape(c);
                     break;
             } // switch
         } // for
@@ -14311,7 +14380,7 @@ class Minimatch {
         // unescape anything in it, though, so that it'll be
         // an exact match against a file etc.
         if (!hasMagic) {
-            return globUnescape(pattern);
+            return globUnescape(re);
         }
         const flags = (options.nocase ? 'i' : '') + (uflag ? 'u' : '');
         try {
@@ -14369,7 +14438,7 @@ class Minimatch {
         let re = set
             .map(pattern => {
             const pp = pattern.map(p => typeof p === 'string'
-                ? mjs_regExpEscape(p)
+                ? regExpEscape(p)
                 : p === GLOBSTAR
                     ? GLOBSTAR
                     : p._src);
@@ -14490,7 +14559,13 @@ class Minimatch {
         return minimatch.defaults(def).Minimatch;
     }
 }
+/* c8 ignore start */
+
+
+/* c8 ignore stop */
 minimatch.Minimatch = Minimatch;
+minimatch.escape = escape_escape;
+minimatch.unescape = unescape_unescape;
 //# sourceMappingURL=index.js.map
 ;// CONCATENATED MODULE: ./src/util.js
 
