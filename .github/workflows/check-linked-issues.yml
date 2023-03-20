@@ -7,6 +7,8 @@ jobs:
   check_pull_requests:
     runs-on: ubuntu-latest
     name: Check
+    permissions:
+      issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3

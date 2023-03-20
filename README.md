@@ -24,6 +24,8 @@ jobs:
   check_pull_requests:
     runs-on: ubuntu-latest
     name: Check linked issues
+    permissions:
+      issues: write
     steps:
       - uses: nearform/github-action-check-linked-issues@v1
         id: check-linked-issues
@@ -48,6 +50,8 @@ jobs:
   check_pull_requests:
     runs-on: ubuntu-latest
     name: Check linked issues
+    permissions:
+      issues: write
     steps:
       - uses: nearform/github-action-check-linked-issues@v1
         id: check-linked-issues
@@ -71,6 +75,8 @@ jobs:
   check_pull_requests:
     runs-on: ubuntu-latest
     name: Check linked issues
+    permissions:
+      issues: write
     steps:
       - uses: nearform/github-action-check-linked-issues@v1
         id: check-linked-issues
