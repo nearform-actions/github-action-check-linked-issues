@@ -2,8 +2,8 @@
 
 # This script makes sure there are no occurrences of eval('require') or eval("require")
 # inside dist/index.js because that was previously a source of a bug in the `ncc` npm package.
-# @see https://github.com/nearform/github-action-check-linked-issues/issues/79
-# @see https://github.com/nearform/github-action-check-linked-issues/pull/87
+# @see https://github.com/nearform-actions/github-action-check-linked-issues/issues/79
+# @see https://github.com/nearform-actions/github-action-check-linked-issues/pull/87
 
 # force tput to use the ansi terminal capabilities
 export TERM=ansi

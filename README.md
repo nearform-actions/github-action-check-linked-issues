@@ -27,7 +27,7 @@ jobs:
     permissions:
       issues: write
     steps:
-      - uses: nearform/github-action-check-linked-issues@v1
+      - uses: nearform-actions/github-action-check-linked-issues@v1
         id: check-linked-issues
         with:
           exclude-branches: "release/**, dependabot/**"
@@ -53,7 +53,7 @@ jobs:
     permissions:
       issues: write
     steps:
-      - uses: nearform/github-action-check-linked-issues@v1
+      - uses: nearform-actions/github-action-check-linked-issues@v1
         id: check-linked-issues
         with:
           exclude-branches: "release/**, dependabot/**"
@@ -78,7 +78,7 @@ jobs:
     permissions:
       issues: write
     steps:
-      - uses: nearform/github-action-check-linked-issues@v1
+      - uses: nearform-actions/github-action-check-linked-issues@v1
         id: check-linked-issues
         with:
           exclude-branches: "release/**, dependabot/**"

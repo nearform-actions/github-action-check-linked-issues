@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: 16
 
-      - uses: nearform/optic-release-automation-action@v4
+      - uses: nearform-actions/optic-release-automation-action@v4
         with:
           semver: ${{ github.event.inputs.semver }}
           sync-semver-tags: "true"
