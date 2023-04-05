@@ -8,10 +8,24 @@ See [action.yml](action.yml).
 
 ## Standard Usage
 
-Configure a workflow to run a job on these `pull_request` or  `pull_request_target` events.
+### Triggers
+
+Configure a workflow to run a job on `pull_request` or  `pull_request_target` events.
 
 If you enable the `comments` option (enabled by default) we recommend to listen on `pull_request_target` event.
 `pull_request_target` event has write permission to the target repository allowing external forks to create comments.
+
+### Permissions
+
+This action needs the following permissions:
+```
+issues: read
+pull-requests: write
+```
+
+💡 Note that `pull-requests: write` is required only if you enable the `comments` option (enabled by default).
+
+### Example
 
 ```yaml
 name: Check linked issues
@@ -25,7 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Check linked issues
     permissions:
-      issues: write
+        issues: read
+        pull-requests: write
     steps:
       - uses: nearform-actions/github-action-check-linked-issues@v1
         id: check-linked-issues
@@ -51,7 +66,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Check linked issues
     permissions:
-      issues: write
+      issues: read
+      pull-requests: write
     steps:
       - uses: nearform-actions/github-action-check-linked-issues@v1
         id: check-linked-issues
@@ -76,7 +92,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Check linked issues
     permissions:
-      issues: write
+      issues: read
+      pull-requests: write
     steps:
       - uses: nearform-actions/github-action-check-linked-issues@v1
         id: check-linked-issues
