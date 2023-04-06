@@ -18,6 +18,9 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write    
     steps:
       - name: Setting composite action runtime
         uses: actions/setup-node@v3
