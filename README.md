@@ -2,9 +2,23 @@
 
 GitHub action to check if pull requests have their corresponding issues linked, in order to enforce traceability.
 
-## Input / Output
+## Inputs
 
-See [action.yml](action.yml).
+| input                      | required | default | description |
+|----------------------------|----|---------------------|------------------------------------------------------------------|
+| `github-token`             | No | `${{github.token}}` | Your Github token, it's already available to your Github action. |
+| `exclude-branches`         | No | `''`                | A comma-separated list of patterns to ignore source branches. (Any pattern supported by `minimatch`). |
+| `exclude-labels`           | No | `''`                | A comma-separated list of labels to ignore. |
+| `comment`                  | No | `true`              | A boolean value that allow the action to create a comment. |
+| `custom-body-comment`      | No | "No linked issues found. Please add the corresponding issues in the pull request description. <br/> [Use GitHub automation to close the issue when a PR is merged](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword)" | Custom body PR comment. |
+
+## Outputs
+
+| output                | description                                                      |
+|-----------------------|------------------------------------------------------------------|
+| `linked_issues_count` | The total number of issues linked to your pull request.          |
+| `issues`              | A stringified array containing the numbers of the linked issues, of the form ["some/repo#123", "another/repository#456"] |
+
 
 ## Standard Usage
 
@@ -12,18 +26,16 @@ See [action.yml](action.yml).
 
 Configure a workflow to run a job on `pull_request` or  `pull_request_target` events.
 
-If you enable the `comments` option (enabled by default) we recommend to listen on `pull_request_target` event.
+If you enable the `comment` option (enabled by default) we recommend to listen on `pull_request_target` event.
 `pull_request_target` event has write permission to the target repository allowing external forks to create comments.
 
 ### Permissions
 
 This action needs the following permissions:
-```
-issues: read
-pull-requests: write
-```
+- `issues: read`
+- `pull-requests: white`
 
-💡 Note that `pull-requests: write` is required only if you enable the `comments` option (enabled by default).
+💡 Note that `pull-requests: write` is required only if you enable the `comment` option (enabled by default), see [Disabling comments](#disabling-comments) example below.
 
 ### Example
 
@@ -52,7 +64,9 @@ jobs:
 ```
 When the action cannot find any linked issues it will fail explaining the reason.
 
-## Adding Comments
+## Comments
+
+### Adding comments
 By default, when the job fails it adds a new comment on Pull Request, but you can also write your custom comment setting 
 `custom-body-comment`.
 
@@ -80,6 +94,7 @@ jobs:
         run: echo "How many linked issues? ${{ steps.check-linked-issues.outputs.linked_issues_count }}"
 ```
 
+### Disabling comments
 To disable comments in your Pull Request, you just need to set `comment` to false.
 
 ```yaml
@@ -105,8 +120,6 @@ jobs:
       - name: Get the output
         run: echo "How many linked issues? ${{ steps.check-linked-issues.outputs.linked_issues_count }}"
 ```
-
-
 
 ## Limitations ⚠️
 
