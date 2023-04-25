@@ -1,36 +1,35 @@
 name: release
-
-on:
+'on':
   workflow_dispatch:
     inputs:
       semver:
-        description: "The semver to use"
+        description: The semver to use
         required: true
-        default: "patch"
+        default: patch
         type: choice
         options:
           - patch
           - minor
           - major
   pull_request:
-    types: [closed]
-
+    types:
+      - closed
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
+      contents: write
+      issues: write
       pull-requests: write
-      contents: write    
     steps:
       - name: Setting composite action runtime
         uses: actions/setup-node@v3
         with:
           node-version: 16
-
       - uses: nearform-actions/optic-release-automation-action@v4
         with:
           semver: ${{ github.event.inputs.semver }}
-          sync-semver-tags: "true"
+          sync-semver-tags: 'true'
           build-command: |
             npm ci
             npm run build
