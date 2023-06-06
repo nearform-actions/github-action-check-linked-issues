@@ -1,6 +1,6 @@
 {
   "name": "github-action-check-linked-issues",
-  "version": "1.4.14",
+  "version": "1.4.15",
   "description": "GitHub action to check if pull requests have their corresponding issues.",
   "author": {
     "name": "NearForm",
