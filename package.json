@@ -24,7 +24,7 @@
     "encoding": "^0.1.13"
   },
   "devDependencies": {
-    "@babel/preset-env": "^7.22.9",
+    "@babel/preset-env": "^7.22.10",
     "@vercel/ncc": "^0.36.1",
     "eslint": "^8.46.0",
     "eslint-config-prettier": "^9.0.0",
