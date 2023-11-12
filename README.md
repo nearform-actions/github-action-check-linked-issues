@@ -33,7 +33,7 @@ If you enable the `comment` option (enabled by default) we recommend to listen o
 
 This action needs the following permissions:
 - `issues: read`
-- `pull-requests: white`
+- `pull-requests: write`
 
 💡 Note that `pull-requests: write` is required only if you enable the `comment` option (enabled by default), see [Disabling comments](#disabling-comments) example below.
 
