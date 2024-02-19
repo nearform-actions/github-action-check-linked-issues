@@ -25,7 +25,7 @@ jobs:
       - name: Setting composite action runtime
         uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 20
       - uses: nearform-actions/optic-release-automation-action@v4
         with:
           semver: ${{ github.event.inputs.semver }}

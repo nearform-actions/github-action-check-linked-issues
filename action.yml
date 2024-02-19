@@ -35,5 +35,5 @@ outputs:
     description: 'A stringified array containing the numbers of the linked issues, of the form ["some/repo#123", "another/repository#456"]'
 
 runs:
-  using: 'node16'
+  using: 'node20'
   main: 'dist/index.js'
