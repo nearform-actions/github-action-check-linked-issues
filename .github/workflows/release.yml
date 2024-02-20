@@ -22,6 +22,8 @@ jobs:
       issues: write
       pull-requests: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Setting composite action runtime
         uses: actions/setup-node@v4
         with:
