@@ -1,4 +1,4 @@
-name: 'Check linked issues'
+name: 'Check linked issues - test'
 
 description: 'Check if pull requests have their corresponding issues.'
 
