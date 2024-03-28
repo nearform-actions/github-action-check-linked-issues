@@ -2,6 +2,13 @@ module.exports = {
   __esModule: true,
   getOctokit: jest.fn(() => {
     return {
+      rest: {
+        issues: {
+          get: jest.fn(() => {
+            return new Promise((resolve) => resolve("task data here"));
+          }),
+        },
+      },
       paginate: jest.fn(() => {
         return new Promise((resolve) =>
           resolve([
@@ -18,6 +25,7 @@ module.exports = {
             repository: {
               pullRequest: {
                 id: "fake-pr-id",
+                body: "Lorem ipsum close #12345 and fix #456",
                 closingIssuesReferences: {
                   totalCount: 2,
                   nodes: [

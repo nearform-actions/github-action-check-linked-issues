@@ -67,6 +67,7 @@ export function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
       repository(owner: $owner, name: $name) {
         pullRequest(number: $number) {
           id
+          body
           closingIssuesReferences(first: 100) {
             totalCount
             nodes {
@@ -86,6 +87,45 @@ export function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
       number: prNumber,
     }
   );
+}
+
+export async function getBodyValidIssue({
+  body,
+  octokit,
+  repoOwner,
+  repoName,
+}) {
+  if (!body) {
+    return [];
+  }
+
+  const regex =
+    /(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved) #\d+/i;
+  const matches = body.toLowerCase().match(regex);
+  let issues = [];
+
+  if (matches) {
+    for (let i = 0, len = matches.length; i < len; i++) {
+      let match = matches[i];
+      let issueId = match.replace("#", "").trim();
+
+      try {
+        let issue = await octokit.rest.issues.get({
+          owner: repoOwner,
+          repo: repoName,
+          issue_number: issueId,
+        });
+
+        if (issue) {
+          core.debug(`Found issue in PR Body ${issueId}`);
+          issues.push(issue);
+        }
+      } catch {
+        core.debug(`#${issueId} is not a valid issue.`);
+      }
+    }
+  }
+  return issues;
 }
 
 function filterLinkedIssuesComments(issues = []) {

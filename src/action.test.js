@@ -34,6 +34,7 @@ test.each([
       payload: {
         action: "opened",
         number: 123,
+        body: "Lorem ipsum close #12345 and fix #456",
         repository: {
           name: "repo_name",
           owner: {

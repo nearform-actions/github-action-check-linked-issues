@@ -8,6 +8,7 @@ import {
   addComment,
   deleteLinkedIssueComments,
   getPrComments,
+  getBodyValidIssue,
 } from "./util.js";
 
 const format = (obj) => JSON.stringify(obj, undefined, 2);
@@ -55,7 +56,13 @@ async function run() {
     `);
 
     const pullRequest = data?.repository?.pullRequest;
-    const linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
+    const linkedIssues = await getBodyValidIssue({
+      body: pullRequest.body,
+      repoName: name,
+      repoOwner: owner.login,
+      octokit,
+    });
+    const linkedIssuesCount = linkedIssues.length;
     const issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
       (node) => `${node.repository.nameWithOwner}#${node.number}`
     );
