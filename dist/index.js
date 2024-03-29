@@ -32573,42 +32573,103 @@ function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
   );
 }
 
+async function getIssues({ owner, repo, issueIds, octokit }) {
+  const issues = [];
+
+  for (const issue_number of issueIds) {
+    try {
+      let issue = await octokit.rest.issues.get({
+        owner,
+        repo,
+        issue_number,
+      });
+
+      if (issue) {
+        core.debug(`Found issue in PR Body ${issue_number}`);
+        issues.push(issue_number);
+      }
+    } catch {
+      core.debug(`#${issue_number} is not a valid issue.`);
+    }
+  }
+
+  return issues;
+}
+
+function extractLocalIssues(body) {
+  const regex =
+    /(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved) #(\d+)/gim;
+  const issues = [];
+  let match;
+
+  while ((match = regex.exec(body.toLowerCase()))) {
+    // eslint-disable-next-line no-unused-vars
+    const [str, action, issueNumber] = match;
+    issues.push(issueNumber);
+  }
+
+  return issues;
+}
+
+function extractExternalIssues(body) {
+  const regex =
+    /\b(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s*(https?:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+))/gim;
+  const issues = [];
+  let match;
+
+  while ((match = regex.exec(body.toLowerCase()))) {
+    // eslint-disable-next-line no-unused-vars
+    const [str, action, url, owner, repo, issueNumber] = match;
+    issues.push({ owner, repo, issueNumber });
+  }
+
+  return issues;
+}
+
 async function getBodyValidIssue({
   body,
   octokit,
   repoOwner,
   repoName,
 }) {
-  if (!body) {
-    return [];
-  }
-
-  const regex =
-    /(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved) #\d+/i;
-  const matches = body.toLowerCase().match(regex);
+  console.log("getBodyValidIssue", body);
   let issues = [];
-
-  if (matches) {
-    for (let i = 0, len = matches.length; i < len; i++) {
-      let match = matches[i];
-      let issueId = match.replace("#", "").trim();
-
-      try {
-        let issue = await octokit.rest.issues.get({
-          owner: repoOwner,
-          repo: repoName,
-          issue_number: issueId,
-        });
-
-        if (issue) {
-          core.debug(`Found issue in PR Body ${issueId}`);
-          issues.push(issue);
-        }
-      } catch {
-        core.debug(`#${issueId} is not a valid issue.`);
-      }
-    }
+  if (!body) {
+    return issues;
   }
+
+  // loading issues from the PR's repo
+  const internalIssues = extractLocalIssues(body);
+  if (internalIssues.length) {
+    const loadedInternalIssues = await getIssues({
+      owner: repoOwner,
+      repo: repoName,
+      issueIds: internalIssues,
+      octokit,
+    });
+    issues = loadedInternalIssues.map(
+      (issueNumber) => `${repoOwner}/${repoName}#${issueNumber}`
+    );
+  }
+
+  // loading external issues
+  const externalIssues = extractExternalIssues(body);
+  if (externalIssues.length) {
+    const { owner, repo } = externalIssues.at(0);
+    const loadedExternalIssues = await getIssues({
+      owner,
+      repo,
+      issueIds: externalIssues.map((issue) => issue.issueNumber),
+      octokit,
+    });
+    issues = [
+      ...issues,
+      ...loadedExternalIssues.map(
+        (issue) => `${issue.owner}/${issue.repo}#${issue.issueNumber}`
+      ),
+    ];
+  }
+
   return issues;
 }
 
@@ -32714,17 +32775,30 @@ async function run() {
     `);
 
     const pullRequest = data?.repository?.pullRequest;
-    const linkedIssues = await getBodyValidIssue({
-      body: pullRequest.body,
-      repoName: name,
-      repoOwner: owner.login,
-      octokit,
-    });
-    const linkedIssuesCount = linkedIssues.length;
-    const issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
-      (node) => `${node.repository.nameWithOwner}#${node.number}`
-    );
+    let linkedIssuesCount = 0;
+    let issues = [];
 
+    const useLooseMatching = core.getBooleanInput("loose-matching", {
+      required: false,
+    });
+    console.log("useLooseMatching", useLooseMatching);
+    // const useLooseMatching = true;
+
+    if (useLooseMatching) {
+      issues = await getBodyValidIssue({
+        body: pullRequest.body,
+        repoName: name,
+        repoOwner: owner.login,
+        octokit,
+      });
+      linkedIssuesCount = issues.length;
+    } else {
+      linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
+      issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
+        (node) => `${node.repository.nameWithOwner}#${node.number}`
+      );
+    }
+    console.log("Issues", issues);
     const linkedIssuesComments = await getPrComments({
       octokit,
       repoName: name,

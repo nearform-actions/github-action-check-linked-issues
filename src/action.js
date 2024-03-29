@@ -56,17 +56,30 @@ async function run() {
     `);
 
     const pullRequest = data?.repository?.pullRequest;
-    const linkedIssues = await getBodyValidIssue({
-      body: pullRequest.body,
-      repoName: name,
-      repoOwner: owner.login,
-      octokit,
-    });
-    const linkedIssuesCount = linkedIssues.length;
-    const issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
-      (node) => `${node.repository.nameWithOwner}#${node.number}`
-    );
+    let linkedIssuesCount = 0;
+    let issues = [];
 
+    const useLooseMatching = core.getBooleanInput("loose-matching", {
+      required: false,
+    });
+    console.log("useLooseMatching", useLooseMatching);
+    // const useLooseMatching = true;
+
+    if (useLooseMatching) {
+      issues = await getBodyValidIssue({
+        body: pullRequest.body,
+        repoName: name,
+        repoOwner: owner.login,
+        octokit,
+      });
+      linkedIssuesCount = issues.length;
+    } else {
+      linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
+      issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
+        (node) => `${node.repository.nameWithOwner}#${node.number}`
+      );
+    }
+    console.log("Issues", issues);
     const linkedIssuesComments = await getPrComments({
       octokit,
       repoName: name,
