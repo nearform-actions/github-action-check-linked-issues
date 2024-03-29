@@ -17,7 +17,7 @@ export function shouldRun() {
   const excludeBranches = parseCSV(
     core.getInput("exclude-branches", {
       required: false,
-    })
+    }),
   );
 
   if (excludeBranches.length) {
@@ -32,7 +32,7 @@ export function shouldRun() {
   const excludeLabels = parseCSV(
     core.getInput("exclude-labels", {
       required: false,
-    })
+    }),
   );
   if (excludeLabels.length) {
     const labels = github.context.payload.pull_request.labels || [];
@@ -56,7 +56,7 @@ export function addComment({ octokit, prId, body }) {
     {
       subjectId: prId,
       body: `${body} ${addMetadata({ action: "linked_issue" })}`,
-    }
+    },
   );
 }
 
@@ -84,7 +84,7 @@ export function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
       owner: repoOwner,
       name: repoName,
       number: prNumber,
-    }
+    },
   );
 }
 
@@ -112,7 +112,7 @@ export async function getPrComments({
       owner: repoOwner,
       repo: repoName,
       prNumber,
-    }
+    },
   );
 
   return filterLinkedIssuesComments(issues);
@@ -131,8 +131,8 @@ export function deleteLinkedIssueComments(octokit, comments) {
       `,
         {
           id: node_id,
-        }
-      )
-    )
+        },
+      ),
+    ),
   );
 }
