@@ -148,7 +148,6 @@ export async function getBodyValidIssue({
   repoOwner,
   repoName,
 }) {
-  console.log("getBodyValidIssue", body);
   let issues = [];
   if (!body) {
     return issues;
@@ -181,7 +180,8 @@ export async function getBodyValidIssue({
     issues = [
       ...issues,
       ...loadedExternalIssues.map(
-        (issue) => `${issue.owner}/${issue.repo}#${issue.issueNumber}`
+        (issue, i) =>
+          `${externalIssues.at(i).owner}/${externalIssues.at(i).repo}#${issue}`
       ),
     ];
   }

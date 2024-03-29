@@ -62,8 +62,6 @@ async function run() {
     const useLooseMatching = core.getBooleanInput("loose-matching", {
       required: false,
     });
-    console.log("useLooseMatching", useLooseMatching);
-    // const useLooseMatching = true;
 
     if (useLooseMatching) {
       issues = await getBodyValidIssue({
@@ -79,7 +77,7 @@ async function run() {
         (node) => `${node.repository.nameWithOwner}#${node.number}`
       );
     }
-    console.log("Issues", issues);
+
     const linkedIssuesComments = await getPrComments({
       octokit,
       repoName: name,
