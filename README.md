@@ -11,6 +11,7 @@ GitHub action to check if pull requests have their corresponding issues linked, 
 | `exclude-labels`           | No | `''`                | A comma-separated list of labels to ignore. |
 | `comment`                  | No | `true`              | A boolean value that allow the action to create a comment. |
 | `custom-body-comment`      | No | "No linked issues found. Please add the corresponding issues in the pull request description. <br/> [Use GitHub automation to close the issue when a PR is merged](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword)" | Custom body PR comment. |
+| `loose-matching`                  | No | `false`              | A boolean value indicating whether the action should verify linked issues on branches other than the default one. This option supports both local issues (e.g., `#123`) and external ones (e.g., `https://github.com/org-name/repo/issues/123`). You can associate a pull request with an issue by including a supported keyword in the pull request's description (e.g., `fixes #123`). Check the GitHub documentation for a list of [supported keywords](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword).|
 
 ## Outputs
 
