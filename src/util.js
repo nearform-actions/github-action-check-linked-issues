@@ -90,6 +90,7 @@ export function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
 }
 
 async function getIssues({ owner, repo, issueIds, octokit }) {
+  console.log("Loading issues", owner, repo, issueIds);
   const issues = [];
 
   for (const issue_number of issueIds) {
@@ -148,6 +149,7 @@ export async function getBodyValidIssue({
   repoOwner,
   repoName,
 }) {
+  console.log("Body", body);
   let issues = [];
   if (!body) {
     return issues;
@@ -155,6 +157,7 @@ export async function getBodyValidIssue({
 
   // loading issues from the PR's repo
   const internalIssues = extractLocalIssues(body);
+  console.log("internalIssues", internalIssues);
   if (internalIssues.length) {
     const loadedInternalIssues = await getIssues({
       owner: repoOwner,
@@ -177,6 +180,7 @@ export async function getBodyValidIssue({
       issueIds: externalIssues.map((issue) => issue.issueNumber),
       octokit,
     });
+    console.log("loadedExternalIssues", loadedExternalIssues);
     issues = [
       ...issues,
       ...loadedExternalIssues.map(
