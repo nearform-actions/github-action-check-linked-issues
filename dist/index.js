@@ -32858,11 +32858,9 @@ async function retrieveIssuesAndCount({
   let linkedIssuesCount = 0;
   let issues = [];
 
-  const looseMatching = core.getInput("loose-matching", {
+  const useLooseMatching = core.getBooleanInput("loose-matching", {
     required: false,
   });
-  console.log("looseMatching", looseMatching);
-  const useLooseMatching = ["true", "True", "TRUE"].includes(looseMatching);
   console.log("useLooseMatching", useLooseMatching);
   if (useLooseMatching) {
     issues = await getBodyValidIssue({
