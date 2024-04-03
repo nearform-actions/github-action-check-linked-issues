@@ -32687,7 +32687,6 @@ async function getBodyValidIssue({
       issueIds: externalIssues.map((issue) => issue.issueNumber),
       octokit,
     });
-
     issues = [
       ...issues,
       ...loadedExternalIssues.map(
@@ -32857,6 +32856,7 @@ async function retrieveIssuesAndCount({
   const useLooseMatching = core.getBooleanInput("loose-matching", {
     required: false,
   });
+
   if (useLooseMatching) {
     issues = await getBodyValidIssue({
       body: pullRequest.body,

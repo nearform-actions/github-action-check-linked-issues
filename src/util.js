@@ -177,7 +177,6 @@ export async function getBodyValidIssue({
       issueIds: externalIssues.map((issue) => issue.issueNumber),
       octokit,
     });
-
     issues = [
       ...issues,
       ...loadedExternalIssues.map(
