@@ -62,7 +62,6 @@ async function run() {
       repoOwner: owner.login,
       octokit,
     });
-    console.log("Retrieved issues", linkedIssuesCount, issues);
 
     const linkedIssuesComments = await getPrComments({
       octokit,
@@ -109,12 +108,9 @@ async function retrieveIssuesAndCount({
   let linkedIssuesCount = 0;
   let issues = [];
 
-  const input = core.getInput("loose-matching");
-  console.log("Input", input);
   const useLooseMatching = core.getBooleanInput("loose-matching", {
     required: false,
   });
-  console.log("useLooseMatching", useLooseMatching);
   if (useLooseMatching) {
     issues = await getBodyValidIssue({
       body: pullRequest.body,
