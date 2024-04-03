@@ -30,7 +30,7 @@ inputs:
   loose-matching:
     description: "A boolean value that allow PR to link issues on any branch"
     required: false
-    default: "false"
+    default: false
 
 outputs:
   linked_issues_count:
