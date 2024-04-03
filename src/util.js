@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import minimatch from "minimatch";
+import { minimatch } from "minimatch";
 
 function parseCSV(value) {
   if (value.trim() === "") return [];
@@ -17,7 +17,7 @@ export function shouldRun() {
   const excludeBranches = parseCSV(
     core.getInput("exclude-branches", {
       required: false,
-    })
+    }),
   );
 
   if (excludeBranches.length) {
@@ -32,7 +32,7 @@ export function shouldRun() {
   const excludeLabels = parseCSV(
     core.getInput("exclude-labels", {
       required: false,
-    })
+    }),
   );
   if (excludeLabels.length) {
     const labels = github.context.payload.pull_request.labels || [];
@@ -56,7 +56,7 @@ export function addComment({ octokit, prId, body }) {
     {
       subjectId: prId,
       body: `${body} ${addMetadata({ action: "linked_issue" })}`,
-    }
+    },
   );
 }
 
@@ -85,7 +85,7 @@ export function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
       owner: repoOwner,
       name: repoName,
       number: prNumber,
-    }
+    },
   );
 }
 
@@ -163,7 +163,7 @@ export async function getBodyValidIssue({
       octokit,
     });
     issues = loadedInternalIssues.map(
-      (issueNumber) => `${repoOwner}/${repoName}#${issueNumber}`
+      (issueNumber) => `${repoOwner}/${repoName}#${issueNumber}`,
     );
   }
 
@@ -181,7 +181,7 @@ export async function getBodyValidIssue({
       ...issues,
       ...loadedExternalIssues.map(
         (issue, i) =>
-          `${externalIssues.at(i).owner}/${externalIssues.at(i).repo}#${issue}`
+          `${externalIssues.at(i).owner}/${externalIssues.at(i).repo}#${issue}`,
       ),
     ];
   }
@@ -213,7 +213,7 @@ export async function getPrComments({
       owner: repoOwner,
       repo: repoName,
       prNumber,
-    }
+    },
   );
 
   return filterLinkedIssuesComments(issues);
@@ -232,8 +232,8 @@ export function deleteLinkedIssueComments(octokit, comments) {
       `,
         {
           id: node_id,
-        }
-      )
-    )
+        },
+      ),
+    ),
   );
 }
