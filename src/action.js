@@ -111,6 +111,7 @@ async function retrieveIssuesAndCount({
 
   const useLooseMatching = core.getBooleanInput("loose-matching", {
     required: false,
+    default: "false"
   });
   console.log("useLooseMatching", useLooseMatching);
   if (useLooseMatching) {
