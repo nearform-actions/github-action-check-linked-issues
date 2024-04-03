@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import minimatch from "minimatch";
+import { minimatch } from "minimatch";
 
 function parseCSV(value) {
   if (value.trim() === "") return [];
