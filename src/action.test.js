@@ -51,6 +51,61 @@ test.each([
   },
 );
 
+const REPO_NAME = "repo_name";
+const ORG_NAME = "org_name";
+test("should return the number of linked issues and their repos using loose matching on local repository", async () => {
+  // eslint-disable-next-line
+  github.context = {
+    looseMatching: true,
+    eventName: "pull_request",
+    payload: {
+      action: "opened",
+      number: 123,
+      repository: {
+        name: REPO_NAME,
+        owner: {
+          login: ORG_NAME,
+        },
+      },
+    },
+  };
+
+  await run();
+
+  expect(core.setOutput).toHaveBeenNthCalledWith(1, "linked_issues_count", 2);
+  expect(core.setOutput).toHaveBeenNthCalledWith(2, "issues", [
+    `${ORG_NAME}/${REPO_NAME}#12345`,
+    `${ORG_NAME}/${REPO_NAME}#456`,
+  ]);
+});
+
+test("should return the number of linked issues and their repos using loose matching on external repository", async () => {
+  // eslint-disable-next-line
+  github.context = {
+    looseMatching: true,
+    externalRepo: true,
+    eventName: "pull_request",
+    payload: {
+      action: "opened",
+      number: 123,
+      repository: {
+        name: "repo_name",
+        owner: {
+          login: "org_name",
+        },
+      },
+    },
+  };
+
+  await run();
+
+  expect(core.setOutput).toHaveBeenNthCalledWith(1, "linked_issues_count", 2);
+  expect(core.setOutput).toHaveBeenNthCalledWith(2, "issues", [
+    "orgone/repoone#123",
+    "orgtwo/repotwo#456",
+  ]);
+});
+
 test.each([["pull_request"], ["pull_request_target"]])(
   "should fail when no linked issues are found and add comment into PR while listening %p event",
   async (eventName) => {

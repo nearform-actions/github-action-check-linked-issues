@@ -8,6 +8,7 @@ import {
   addComment,
   deleteLinkedIssueComments,
   getPrComments,
+  getBodyValidIssue,
 } from "./util.js";
 
 const format = (obj) => JSON.stringify(obj, undefined, 2);
@@ -55,10 +56,12 @@ async function run() {
     `);
 
     const pullRequest = data?.repository?.pullRequest;
-    const linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
-    const issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
-      (node) => `${node.repository.nameWithOwner}#${node.number}`,
-    );
+    const { linkedIssuesCount, issues } = await retrieveIssuesAndCount({
+      pullRequest,
+      repoName: name,
+      repoOwner: owner.login,
+      octokit,
+    });
 
     const linkedIssuesComments = await getPrComments({
       octokit,
@@ -94,6 +97,37 @@ async function run() {
     *** ACTION RUN - END ***
     `);
   }
+}
+
+async function retrieveIssuesAndCount({
+  pullRequest,
+  repoName,
+  repoOwner,
+  octokit,
+}) {
+  let linkedIssuesCount = 0;
+  let issues = [];
+
+  const useLooseMatching = core.getBooleanInput("loose-matching", {
+    required: false,
+  });
+
+  if (useLooseMatching) {
+    issues = await getBodyValidIssue({
+      body: pullRequest.body,
+      repoName,
+      repoOwner,
+      octokit,
+    });
+    linkedIssuesCount = issues.length;
+  } else {
+    linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
+    issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
+      (node) => `${node.repository.nameWithOwner}#${node.number}`,
+    );
+  }
+
+  return { linkedIssuesCount, issues };
 }
 
 export { run };

@@ -32577,6 +32577,7 @@ function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
       repository(owner: $owner, name: $name) {
         pullRequest(number: $number) {
           id
+          body
           closingIssuesReferences(first: 100) {
             totalCount
             nodes {
@@ -32596,6 +32597,106 @@ function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
       number: prNumber,
     },
   );
+}
+
+async function getIssues({ owner, repo, issueIds, octokit }) {
+  const issues = [];
+
+  for (const issue_number of issueIds) {
+    try {
+      let issue = await octokit.rest.issues.get({
+        owner,
+        repo,
+        issue_number,
+      });
+
+      if (issue) {
+        core.debug(`Found issue in PR Body ${issue_number}`);
+        issues.push(issue_number);
+      }
+    } catch {
+      core.debug(`#${issue_number} is not a valid issue.`);
+    }
+  }
+
+  return issues;
+}
+
+function extractLocalIssues(body) {
+  const regex =
+    /(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved) #(\d+)/gim;
+  const issues = [];
+  let match;
+
+  while ((match = regex.exec(body.toLowerCase()))) {
+    // eslint-disable-next-line no-unused-vars
+    const [str, action, issueNumber] = match;
+    issues.push(issueNumber);
+  }
+
+  return issues;
+}
+
+function extractExternalIssues(body) {
+  const regex =
+    /\b(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s*(https?:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+))/gim;
+  const issues = [];
+  let match;
+
+  while ((match = regex.exec(body.toLowerCase()))) {
+    // eslint-disable-next-line no-unused-vars
+    const [str, action, url, owner, repo, issueNumber] = match;
+    issues.push({ owner, repo, issueNumber });
+  }
+
+  return issues;
+}
+
+async function getBodyValidIssue({
+  body,
+  octokit,
+  repoOwner,
+  repoName,
+}) {
+  let issues = [];
+  if (!body) {
+    return issues;
+  }
+
+  // loading issues from the PR's repo
+  const internalIssues = extractLocalIssues(body);
+  if (internalIssues.length) {
+    const loadedInternalIssues = await getIssues({
+      owner: repoOwner,
+      repo: repoName,
+      issueIds: internalIssues,
+      octokit,
+    });
+    issues = loadedInternalIssues.map(
+      (issueNumber) => `${repoOwner}/${repoName}#${issueNumber}`,
+    );
+  }
+
+  // loading external issues
+  const externalIssues = extractExternalIssues(body);
+  if (externalIssues.length) {
+    const { owner, repo } = externalIssues.at(0);
+    const loadedExternalIssues = await getIssues({
+      owner,
+      repo,
+      issueIds: externalIssues.map((issue) => issue.issueNumber),
+      octokit,
+    });
+    issues = [
+      ...issues,
+      ...loadedExternalIssues.map(
+        (issue, i) =>
+          `${externalIssues.at(i).owner}/${externalIssues.at(i).repo}#${issue}`,
+      ),
+    ];
+  }
+
+  return issues;
 }
 
 function filterLinkedIssuesComments(issues = []) {
@@ -32700,10 +32801,12 @@ async function run() {
     `);
 
     const pullRequest = data?.repository?.pullRequest;
-    const linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
-    const issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
-      (node) => `${node.repository.nameWithOwner}#${node.number}`,
-    );
+    const { linkedIssuesCount, issues } = await retrieveIssuesAndCount({
+      pullRequest,
+      repoName: name,
+      repoOwner: owner.login,
+      octokit,
+    });
 
     const linkedIssuesComments = await getPrComments({
       octokit,
@@ -32739,6 +32842,37 @@ async function run() {
     *** ACTION RUN - END ***
     `);
   }
+}
+
+async function retrieveIssuesAndCount({
+  pullRequest,
+  repoName,
+  repoOwner,
+  octokit,
+}) {
+  let linkedIssuesCount = 0;
+  let issues = [];
+
+  const useLooseMatching = core.getBooleanInput("loose-matching", {
+    required: false,
+  });
+
+  if (useLooseMatching) {
+    issues = await getBodyValidIssue({
+      body: pullRequest.body,
+      repoName,
+      repoOwner,
+      octokit,
+    });
+    linkedIssuesCount = issues.length;
+  } else {
+    linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
+    issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
+      (node) => `${node.repository.nameWithOwner}#${node.number}`,
+    );
+  }
+
+  return { linkedIssuesCount, issues };
 }
 
 
