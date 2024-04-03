@@ -18,7 +18,7 @@ it("should fail when called with an unsupported event type", async () => {
   await run();
 
   expect(core.setFailed).toHaveBeenCalledWith(
-    `This action can only run on "pull_request_target" or "pull_request", but "WHATEVER" was received. Please check your workflow.`
+    `This action can only run on "pull_request_target" or "pull_request", but "WHATEVER" was received. Please check your workflow.`,
   );
 });
 
@@ -48,7 +48,7 @@ test.each([
     expect(core.setOutput).toHaveBeenNthCalledWith(1, "linked_issues_count", n);
     expect(core.setOutput).toHaveBeenNthCalledWith(2, "issues", issueArray);
     expect(core.debug).toHaveBeenCalledWith(`1 Comment(s) deleted.`);
-  }
+  },
 );
 
 test.each([["pull_request"], ["pull_request_target"]])(
@@ -100,7 +100,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
                 node_id: "fake-node-id",
                 body: "fake comment",
               },
-            ])
+            ]),
           );
         }),
         graphql,
@@ -118,7 +118,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
 
     expect(core.setFailed).toHaveBeenCalledWith(ERROR_MESSAGE);
     expect(core.debug).toHaveBeenCalledWith("Comment added");
-  }
+  },
 );
 
 test.each([["pull_request"], ["pull_request_target"]])(
@@ -174,7 +174,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
                 node_id: "fake-node-id",
                 body: "fake comment",
               },
-            ])
+            ]),
           );
         }),
         graphql,
@@ -189,7 +189,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
     expect(graphql).not.toHaveBeenCalledWith(addCommentMutation);
 
     expect(core.setFailed).toHaveBeenCalledWith(ERROR_MESSAGE);
-  }
+  },
 );
 
 test.each([["pull_request"], ["pull_request_target"]])(
@@ -237,5 +237,5 @@ test.each([["pull_request"], ["pull_request_target"]])(
     await run();
 
     expect(core.debug).not.toHaveBeenCalledWith("Comment added");
-  }
+  },
 );

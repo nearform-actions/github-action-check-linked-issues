@@ -25,7 +25,7 @@ async function run() {
 
     if (eventName !== "pull_request_target" && eventName !== "pull_request") {
       throw new Error(
-        `This action can only run on "pull_request_target" or "pull_request", but "${eventName}" was received. Please check your workflow.`
+        `This action can only run on "pull_request_target" or "pull_request", but "${eventName}" was received. Please check your workflow.`,
       );
     }
 
@@ -57,7 +57,7 @@ async function run() {
     const pullRequest = data?.repository?.pullRequest;
     const linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
     const issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
-      (node) => `${node.repository.nameWithOwner}#${node.number}`
+      (node) => `${node.repository.nameWithOwner}#${node.number}`,
     );
 
     const linkedIssuesComments = await getPrComments({

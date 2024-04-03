@@ -32527,7 +32527,7 @@ function shouldRun() {
   const excludeBranches = parseCSV(
     core.getInput("exclude-branches", {
       required: false,
-    })
+    }),
   );
 
   if (excludeBranches.length) {
@@ -32542,7 +32542,7 @@ function shouldRun() {
   const excludeLabels = parseCSV(
     core.getInput("exclude-labels", {
       required: false,
-    })
+    }),
   );
   if (excludeLabels.length) {
     const labels = github.context.payload.pull_request.labels || [];
@@ -32566,7 +32566,7 @@ function addComment({ octokit, prId, body }) {
     {
       subjectId: prId,
       body: `${body} ${addMetadata({ action: "linked_issue" })}`,
-    }
+    },
   );
 }
 
@@ -32594,7 +32594,7 @@ function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
       owner: repoOwner,
       name: repoName,
       number: prNumber,
-    }
+    },
   );
 }
 
@@ -32622,7 +32622,7 @@ async function getPrComments({
       owner: repoOwner,
       repo: repoName,
       prNumber,
-    }
+    },
   );
 
   return filterLinkedIssuesComments(issues);
@@ -32641,9 +32641,9 @@ function deleteLinkedIssueComments(octokit, comments) {
       `,
         {
           id: node_id,
-        }
-      )
-    )
+        },
+      ),
+    ),
   );
 }
 
@@ -32670,7 +32670,7 @@ async function run() {
 
     if (eventName !== "pull_request_target" && eventName !== "pull_request") {
       throw new Error(
-        `This action can only run on "pull_request_target" or "pull_request", but "${eventName}" was received. Please check your workflow.`
+        `This action can only run on "pull_request_target" or "pull_request", but "${eventName}" was received. Please check your workflow.`,
       );
     }
 
@@ -32702,7 +32702,7 @@ async function run() {
     const pullRequest = data?.repository?.pullRequest;
     const linkedIssuesCount = pullRequest?.closingIssuesReferences?.totalCount;
     const issues = (pullRequest?.closingIssuesReferences?.nodes || []).map(
-      (node) => `${node.repository.nameWithOwner}#${node.number}`
+      (node) => `${node.repository.nameWithOwner}#${node.number}`,
     );
 
     const linkedIssuesComments = await getPrComments({

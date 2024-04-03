@@ -29,7 +29,7 @@ describe("shouldRun", () => {
     "should return correct value for each case",
     async (excludeBranches, excludeLabels, sourceBranch, result) => {
       core.getInput.mockImplementation((a) =>
-        a === "exclude-branches" ? excludeBranches : excludeLabels
+        a === "exclude-branches" ? excludeBranches : excludeLabels,
       );
 
       // eslint-disable-next-line
@@ -43,7 +43,7 @@ describe("shouldRun", () => {
         },
       };
       expect(shouldRun()).toBe(result);
-    }
+    },
   );
 });
 
@@ -67,13 +67,13 @@ it("should delete comments given node ids", async () => {
     expect.stringContaining("mutation deleteCommentLinkedIssue"),
     {
       id: "fake-node-id1",
-    }
+    },
   );
   expect(octokit.graphql).toHaveBeenCalledWith(
     expect.stringContaining("mutation deleteCommentLinkedIssue"),
     {
       id: "fake-node-id2",
-    }
+    },
   );
 });
 
@@ -92,9 +92,9 @@ it("should addComment given subjectId", async () => {
     {
       subjectId: "fake-pr-id",
       body: expect.stringContaining(
-        'fake-comment-body <!-- metadata = {"action":"linked_issue"} -->'
+        'fake-comment-body <!-- metadata = {"action":"linked_issue"} -->',
       ),
-    }
+    },
   );
 });
 
@@ -120,6 +120,6 @@ it("should get linked issues by repository name and pull request number", async 
       owner,
       name,
       number,
-    }
+    },
   );
 });
