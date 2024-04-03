@@ -32858,6 +32858,8 @@ async function retrieveIssuesAndCount({
   let linkedIssuesCount = 0;
   let issues = [];
 
+  const input = core.getInput("loose-matching");
+  console.log("Input", input);
   const useLooseMatching = core.getBooleanInput("loose-matching", {
     required: false,
   });
