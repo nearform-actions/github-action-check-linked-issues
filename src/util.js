@@ -129,13 +129,13 @@ function extractLocalIssues(body) {
 
 function extractExternalIssues(body) {
   const regex =
-    /\b(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s*(https?:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+))/gim;
+    /\b(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s(https?:\/\/github\.com\/)*(([^/]+)\/([^/|#]+)(\/issues\/|#)(\d+))/gim;
   const issues = [];
   let match;
 
   while ((match = regex.exec(body.toLowerCase()))) {
     // eslint-disable-next-line no-unused-vars
-    const [str, action, url, owner, repo, issueNumber] = match;
+    const [str, action, url, path, owner, repo, separator, issueNumber] = match;
     issues.push({ owner, repo, issueNumber });
   }
 
