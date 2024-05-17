@@ -194,7 +194,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
     });
 
     // eslint-disable-next-line
-    core.getInput.mockReturnValue("true");
+    core.getBooleanInput.mockReturnValue("true");
 
     await run();
 
@@ -268,7 +268,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
     });
 
     // eslint-disable-next-line
-    core.getInput.mockReturnValue("true");
+    core.getBooleanInput.mockReturnValue("true");
 
     await run();
 
@@ -318,7 +318,7 @@ test.each([["pull_request"], ["pull_request_target"]])(
     });
 
     // eslint-disable-next-line
-    core.getInput.mockReturnValue("");
+    core.getBooleanInput.mockReturnValue("");
 
     await run();
 
