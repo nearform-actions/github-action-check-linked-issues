@@ -146,3 +146,5 @@ Please **DO NOT** link issues manually from the sidebar, neither from commit mes
 ## Referencing issues in another repository
 
 You can also reference issues outside of the repository on which the workflow is running. This works only if the repository containing the issue is `public`. Issues in private repositories are not accessible by this action.
+
+[![banner](https://raw.githubusercontent.com/nearform/.github/refs/heads/master/assets/os-banner-green.svg)](https://www.nearform.com/contact/?utm_source=open-source&utm_medium=banner&utm_campaign=os-project-pages)
