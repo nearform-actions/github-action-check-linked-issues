@@ -47,7 +47,7 @@ test.each([
 
     expect(core.setOutput).toHaveBeenNthCalledWith(1, "linked_issues_count", n);
     expect(core.setOutput).toHaveBeenNthCalledWith(2, "issues", issueArray);
-    expect(core.debug).toHaveBeenCalledWith(`1 Comment(s) deleted.`);
+    expect(core.debug).toHaveBeenCalledWith(`1 comment(s) deleted.`);
   },
 );
 
@@ -136,6 +136,36 @@ test("should return the number of linked issues and their repos using loose matc
     "ext_org/ext_repo#1337",
   ]);
 });
+
+test.each([["pull_request"], ["pull_request_target"]])(
+  "should succeed when PR is labeled with 'no-issue' while listening %p event",
+  async (eventName) => {
+    // eslint-disable-next-line
+    github.context = {
+      eventName,
+      withNoIssueLabel: true,
+      payload: {
+        action: "opened",
+        number: 123,
+        repository: {
+          name: "repo_name",
+          owner: {
+            login: "org_name",
+          },
+        },
+      },
+    };
+    // eslint-disable-next-line
+    core.getBooleanInput.mockReturnValue("true");
+    await run();
+    expect(core.setFailed).not.toHaveBeenCalled();
+    expect(core.setOutput).toHaveBeenCalledWith("check_skipped", true);
+    expect(core.debug).toHaveBeenCalledWith(
+      "Pull request is labeled with 'no-issue', skipping check",
+    );
+    expect(core.debug).toHaveBeenCalledWith(`1 comment(s) deleted.`);
+  },
+);
 
 test.each([["pull_request"], ["pull_request_target"]])(
   "should fail when no linked issues are found and add comment into PR while listening %p event",

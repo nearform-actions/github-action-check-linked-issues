@@ -19,6 +19,7 @@ GitHub action to check if pull requests have their corresponding issues linked, 
 |-----------------------|------------------------------------------------------------------|
 | `linked_issues_count` | The total number of issues linked to your pull request.          |
 | `issues`              | A stringified array containing the numbers of the linked issues, of the form ["some/repo#123", "another/repository#456"] |
+| `check_skipped`       | Will be set to `true` if the action was skipped due to a `no-issue` label present on the PR. |
 
 
 ## Standard Usage
@@ -29,6 +30,8 @@ Configure a workflow to run a job on `pull_request` or  `pull_request_target` ev
 
 If you enable the `comment` option (enabled by default) we recommend to listen on `pull_request_target` event.
 `pull_request_target` event has write permission to the target repository allowing external forks to create comments.
+
+The linked issue check will automatically succeed (and any present comment added by this action deleted) if a `no-issue` label is attached to the PR. In that case, the `check_skipped` output will also be set to `true`, allowing you to skip subsequent steps in your Github Action, if so desired.
 
 ### Permissions
 
@@ -68,7 +71,7 @@ When the action cannot find any linked issues it will fail explaining the reason
 ## Comments
 
 ### Adding comments
-By default, when the job fails it adds a new comment on Pull Request, but you can also write your custom comment setting 
+By default, when the job fails it adds a new comment on Pull Request, but you can also write your custom comment setting
 `custom-body-comment`.
 
 ```yaml

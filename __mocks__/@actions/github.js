@@ -51,6 +51,30 @@ module.exports = {
                     },
                   ],
                 },
+                labels: github.context.withNoIssueLabel
+                  ? {
+                    nodes: [
+                      {
+                        name: "foo",
+                      },
+                      {
+                        name: "no-issue",
+                      },
+                      {
+                        name: "bar",
+                      }
+                    ],
+                  }
+                  : {
+                    nodes: [
+                      {
+                        name: "foo",
+                      },
+                      {
+                        name: "bar",
+                      }
+                    ],
+                  },
               },
             },
           });

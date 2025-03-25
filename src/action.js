@@ -9,6 +9,7 @@ import {
   deleteLinkedIssueComments,
   getPrComments,
   getBodyValidIssue,
+  skipLinkedIssuesCheck,
 } from "./util.js";
 
 const format = (obj) => JSON.stringify(obj, undefined, 2);
@@ -56,18 +57,34 @@ async function run() {
     `);
 
     const pullRequest = data?.repository?.pullRequest;
-    const { linkedIssuesCount, issues } = await retrieveIssuesAndCount({
-      pullRequest,
-      repoName: name,
-      repoOwner: owner.login,
-      octokit,
-    });
+    const skipCheck = skipLinkedIssuesCheck(pullRequest);
 
     const linkedIssuesComments = await getPrComments({
       octokit,
       repoName: name,
       prNumber: number,
       repoOwner: owner.login,
+    });
+
+    if (skipCheck) {
+      core.debug("Pull request is labeled with 'no-issue', skipping check");
+
+      if (linkedIssuesComments.length) {
+        await deleteLinkedIssueComments(octokit, linkedIssuesComments);
+
+        core.debug(`${linkedIssuesComments.length} comment(s) deleted.`);
+      }
+
+      core.setOutput("check_skipped", true);
+
+      return;
+    }
+
+    const { linkedIssuesCount, issues } = await retrieveIssuesAndCount({
+      pullRequest,
+      repoName: name,
+      repoOwner: owner.login,
+      octokit,
     });
 
     core.setOutput("linked_issues_count", linkedIssuesCount);
@@ -88,7 +105,8 @@ async function run() {
       core.setFailed(ERROR_MESSAGE);
     } else if (linkedIssuesComments.length) {
       await deleteLinkedIssueComments(octokit, linkedIssuesComments);
-      core.debug(`${linkedIssuesComments.length} Comment(s) deleted.`);
+
+      core.debug(`${linkedIssuesComments.length} comment(s) deleted.`);
     }
   } catch (error) {
     core.setFailed(error.message);
