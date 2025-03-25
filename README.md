@@ -19,7 +19,7 @@ GitHub action to check if pull requests have their corresponding issues linked, 
 |-----------------------|------------------------------------------------------------------|
 | `linked_issues_count` | The total number of issues linked to your pull request.          |
 | `issues`              | A stringified array containing the numbers of the linked issues, of the form ["some/repo#123", "another/repository#456"] |
-| `check_skipped`       | Will be set to true if the action was skipped due to an `no-issue` label present on the PR. |
+| `check_skipped`       | Will be set to `true`` if the action was skipped due to a `no-issue` label present on the PR. |
 
 
 ## Standard Usage
