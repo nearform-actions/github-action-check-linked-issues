@@ -138,7 +138,7 @@ test("should return the number of linked issues and their repos using loose matc
 });
 
 test.each([["pull_request"], ["pull_request_target"]])(
-  "should succeed when PR is labeled with 'no-issue'",
+  "should succeed when PR is labeled with 'no-issue' while listening %p event",
   async (eventName) => {
     // eslint-disable-next-line
     github.context = {

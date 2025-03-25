@@ -76,37 +76,39 @@ async function run() {
       }
 
       core.setOutput("check_skipped", true);
-    } else {
-      const { linkedIssuesCount, issues } = await retrieveIssuesAndCount({
-        pullRequest,
-        repoName: name,
-        repoOwner: owner.login,
-        octokit,
-      });
 
-      core.setOutput("linked_issues_count", linkedIssuesCount);
-      core.setOutput("issues", issues);
+      return;
+    }
 
-      if (!linkedIssuesCount) {
-        const prId = pullRequest?.id;
-        const shouldComment =
-          !linkedIssuesComments.length &&
-          core.getBooleanInput("comment") &&
-          prId;
+    const { linkedIssuesCount, issues } = await retrieveIssuesAndCount({
+      pullRequest,
+      repoName: name,
+      repoOwner: owner.login,
+      octokit,
+    });
 
-        if (shouldComment) {
-          const body = core.getInput("custom-body-comment");
-          await addComment({ octokit, prId, body });
+    core.setOutput("linked_issues_count", linkedIssuesCount);
+    core.setOutput("issues", issues);
 
-          core.debug("Comment added");
-        }
+    if (!linkedIssuesCount) {
+      const prId = pullRequest?.id;
+      const shouldComment =
+        !linkedIssuesComments.length &&
+        core.getBooleanInput("comment") &&
+        prId;
 
-        core.setFailed(ERROR_MESSAGE);
-      } else if (linkedIssuesComments.length) {
-        await deleteLinkedIssueComments(octokit, linkedIssuesComments);
+      if (shouldComment) {
+        const body = core.getInput("custom-body-comment");
+        await addComment({ octokit, prId, body });
 
-        core.debug(`${linkedIssuesComments.length} comment(s) deleted.`);
+        core.debug("Comment added");
       }
+
+      core.setFailed(ERROR_MESSAGE);
+    } else if (linkedIssuesComments.length) {
+      await deleteLinkedIssueComments(octokit, linkedIssuesComments);
+
+      core.debug(`${linkedIssuesComments.length} comment(s) deleted.`);
     }
   } catch (error) {
     core.setFailed(error.message);
