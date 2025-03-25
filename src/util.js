@@ -77,6 +77,11 @@ export function getLinkedIssues({ octokit, prNumber, repoOwner, repoName }) {
               }
             }
           }
+          labels(first: 100) {
+            nodes {
+              name
+            }
+          }
         }
       }
     }
@@ -140,6 +145,12 @@ function extractExternalIssues(body) {
   }
 
   return issues;
+}
+
+export function skipLinkedIssuesCheck(pullRequest) {
+  const labels = (pullRequest?.labels?.nodes || []).map((node) => node.name);
+
+  return labels.includes("no-issue");
 }
 
 export async function getBodyValidIssue({

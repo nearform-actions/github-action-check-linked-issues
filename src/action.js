@@ -9,6 +9,7 @@ import {
   deleteLinkedIssueComments,
   getPrComments,
   getBodyValidIssue,
+  skipLinkedIssuesCheck,
 } from "./util.js";
 
 const format = (obj) => JSON.stringify(obj, undefined, 2);
@@ -56,12 +57,7 @@ async function run() {
     `);
 
     const pullRequest = data?.repository?.pullRequest;
-    const { linkedIssuesCount, issues } = await retrieveIssuesAndCount({
-      pullRequest,
-      repoName: name,
-      repoOwner: owner.login,
-      octokit,
-    });
+    const skipCheck = skipLinkedIssuesCheck(pullRequest);
 
     const linkedIssuesComments = await getPrComments({
       octokit,
@@ -70,25 +66,47 @@ async function run() {
       repoOwner: owner.login,
     });
 
-    core.setOutput("linked_issues_count", linkedIssuesCount);
-    core.setOutput("issues", issues);
+    if (skipCheck) {
+      core.debug("Pull request is labeled with 'no-issue', skipping check");
 
-    if (!linkedIssuesCount) {
-      const prId = pullRequest?.id;
-      const shouldComment =
-        !linkedIssuesComments.length && core.getBooleanInput("comment") && prId;
+      if (linkedIssuesComments.length) {
+        await deleteLinkedIssueComments(octokit, linkedIssuesComments);
 
-      if (shouldComment) {
-        const body = core.getInput("custom-body-comment");
-        await addComment({ octokit, prId, body });
-
-        core.debug("Comment added");
+        core.debug(`${linkedIssuesComments.length} comment(s) deleted.`);
       }
 
-      core.setFailed(ERROR_MESSAGE);
-    } else if (linkedIssuesComments.length) {
-      await deleteLinkedIssueComments(octokit, linkedIssuesComments);
-      core.debug(`${linkedIssuesComments.length} Comment(s) deleted.`);
+      core.setOutput("check_skipped", true);
+    } else {
+      const { linkedIssuesCount, issues } = await retrieveIssuesAndCount({
+        pullRequest,
+        repoName: name,
+        repoOwner: owner.login,
+        octokit,
+      });
+
+      core.setOutput("linked_issues_count", linkedIssuesCount);
+      core.setOutput("issues", issues);
+
+      if (!linkedIssuesCount) {
+        const prId = pullRequest?.id;
+        const shouldComment =
+          !linkedIssuesComments.length &&
+          core.getBooleanInput("comment") &&
+          prId;
+
+        if (shouldComment) {
+          const body = core.getInput("custom-body-comment");
+          await addComment({ octokit, prId, body });
+
+          core.debug("Comment added");
+        }
+
+        core.setFailed(ERROR_MESSAGE);
+      } else if (linkedIssuesComments.length) {
+        await deleteLinkedIssueComments(octokit, linkedIssuesComments);
+
+        core.debug(`${linkedIssuesComments.length} comment(s) deleted.`);
+      }
     }
   } catch (error) {
     core.setFailed(error.message);
