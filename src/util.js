@@ -119,7 +119,7 @@ async function getIssues({ owner, repo, issueIds, octokit }) {
 
 function extractLocalIssues(body) {
   const regex =
-    /(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved) #(\d+)/gim;
+    /(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)(?:\s*:)?\s+#(\d+)/gim;
   const issues = [];
   let match;
 
@@ -134,7 +134,7 @@ function extractLocalIssues(body) {
 
 function extractExternalIssues(body) {
   const regex =
-    /\b(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s(https?:\/\/github\.com\/)*(([^/]+)\/([^/|#]+)(\/issues\/|#)(\d+))/gim;
+    /\b(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)(?:\s*:)?\s+(https?:\/\/github\.com\/)*(([^/]+)\/([^/|#]+)(\/issues\/|#)(\d+))/gim;
   const issues = [];
   let match;
 
