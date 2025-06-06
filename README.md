@@ -12,6 +12,7 @@ GitHub action to check if pull requests have their corresponding issues linked, 
 | `comment`                  | No | `true`              | A boolean value that allow the action to create a comment. |
 | `custom-body-comment`      | No | "No linked issues found. Please add the corresponding issues in the pull request description. <br/> [Use GitHub automation to close the issue when a PR is merged](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword)" | Custom body PR comment. |
 | `loose-matching`                  | No | `false`              | A boolean value indicating whether the action should verify linked issues inside a PR's description, merging onto any branch (including non-default branches like `main` or `master`). When enabled, this option supports both local issues (e.g., `#123`) and external ones (e.g., `https://github.com/org-name/repo/issues/123` or `org-name/repo#123`). Associating a pull request with an issue requires the use of any of the [supported keywords](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) in the pull request's description (e.g., `fixes #123`).|
+| `skip-linked-issued-check-label` | No | `no-issue` | A label that causes the action to execute but skip the actual linked issues check. If the check is skipped, the `check_skipped` output is set to `true`. Any present comments added by this action are also deleted. Useful when incorporating this action into multi-action workflows.|
 
 ## Outputs
 
@@ -19,8 +20,7 @@ GitHub action to check if pull requests have their corresponding issues linked, 
 |-----------------------|------------------------------------------------------------------|
 | `linked_issues_count` | The total number of issues linked to your pull request.          |
 | `issues`              | A stringified array containing the numbers of the linked issues, of the form ["some/repo#123", "another/repository#456"] |
-| `check_skipped`       | Will be set to `true` if the action was skipped due to a `no-issue` label present on the PR. |
-
+| `check_skipped`       | Will be set to `true` if the linked issues check was skipped. |
 
 ## Standard Usage
 

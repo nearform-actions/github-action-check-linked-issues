@@ -138,12 +138,12 @@ test("should return the number of linked issues and their repos using loose matc
 });
 
 test.each([["pull_request"], ["pull_request_target"]])(
-  "should succeed when PR is labeled with 'no-issue' while listening %p event",
+  "should skip labeled issues check when PR is labeled with specified skip label while listening %p event",
   async (eventName) => {
     // eslint-disable-next-line
     github.context = {
       eventName,
-      withNoIssueLabel: true,
+      withLabel: "skip-linked-issues-check",
       payload: {
         action: "opened",
         number: 123,
@@ -155,8 +155,8 @@ test.each([["pull_request"], ["pull_request_target"]])(
         },
       },
     };
-    // eslint-disable-next-line
-    core.getBooleanInput.mockReturnValue("true");
+
+    core.getInput.mockReturnValue("skip-linked-issues-check");
     await run();
     expect(core.setFailed).not.toHaveBeenCalled();
     expect(core.setOutput).toHaveBeenCalledWith("check_skipped", true);

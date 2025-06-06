@@ -149,8 +149,9 @@ function extractExternalIssues(body) {
 
 export function skipLinkedIssuesCheck(pullRequest) {
   const labels = (pullRequest?.labels?.nodes || []).map((node) => node.name);
+  const skipLinkedIssuesCheck = core.getInput("skip-linked-issues-check-label");
 
-  return labels.includes("no-issue");
+  return labels.includes(skipLinkedIssuesCheck);
 }
 
 export async function getBodyValidIssue({

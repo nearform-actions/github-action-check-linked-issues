@@ -51,14 +51,14 @@ module.exports = {
                         },
                       ],
                     },
-                labels: github.context.withNoIssueLabel
+                labels: github.context.withLabel
                   ? {
                       nodes: [
                         {
                           name: "foo",
                         },
                         {
-                          name: "no-issue",
+                          name: github.context.withLabel,
                         },
                         {
                           name: "bar",
