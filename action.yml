@@ -31,12 +31,18 @@ inputs:
     description: "A boolean value that allow PR to link issues on any branch"
     required: false
     default: "false"
+  skip-linked-issued-check-label:
+    description: "A label that causes the action to execute but skip the actual linked issues check. If the check is skipped, the `check_skipped` output is set to `true`. Any present comments added by this action are also deleted. Useful when incorporating this action into multi-action workflows."
+    required: false
+    default: 'no-issue'
 
 outputs:
   linked_issues_count:
     description: 'The total number of issues linked to your pull request.'
   issues:
     description: 'A stringified array containing the numbers of the linked issues, of the form ["some/repo#123", "another/repository#456"]'
+  check_skipped:
+    description: 'Set to true if the linked issues check is skipped.'
 
 runs:
   using: 'node20'
