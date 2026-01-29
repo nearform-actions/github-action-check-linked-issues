@@ -17,7 +17,7 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@actions/core": "^2.0.3",
+    "@actions/core": "^3.0.0",
     "@actions/github": "^9.0.0",
     "actions-toolkit": "github:nearform/actions-toolkit",
     "minimatch": "^10.1.1",
