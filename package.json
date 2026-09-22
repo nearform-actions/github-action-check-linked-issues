@@ -19,7 +19,7 @@
   "dependencies": {
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
-    "actions-toolkit": "github:nearform/actions-toolkit",
+    "actions-toolkit": "github:nearform/actions-toolkit#fc9d67e00eb2b101de4e07310c4c946aae6fcbf6",
     "minimatch": "^10.2.6",
     "encoding": "^0.1.13"
   },
