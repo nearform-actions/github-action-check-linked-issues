@@ -45,5 +45,5 @@ outputs:
     description: 'Set to true if the linked issues check is skipped.'
 
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
