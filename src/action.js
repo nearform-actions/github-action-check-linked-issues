@@ -123,8 +123,8 @@ async function retrieveIssuesAndCount({
   repoOwner,
   octokit,
 }) {
-  let linkedIssuesCount = 0;
-  let issues = [];
+  let linkedIssuesCount;
+  let issues;
 
   const useLooseMatching = core.getBooleanInput("loose-matching", {
     required: false,
