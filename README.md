@@ -11,16 +11,28 @@ GitHub action to check if pull requests have their corresponding issues linked, 
 | `exclude-labels`           | No | `''`                | A comma-separated list of labels to ignore. |
 | `comment`                  | No | `true`              | A boolean value that allow the action to create a comment. |
 | `custom-body-comment`      | No | "No linked issues found. Please add the corresponding issues in the pull request description. <br/> [Use GitHub automation to close the issue when a PR is merged](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword)" | Custom body PR comment. |
-| `loose-matching`                  | No | `false`              | A boolean value indicating whether the action should verify linked issues inside a PR's description, merging onto any branch (including non-default branches like `main` or `master`). When enabled, this option supports both local issues (e.g., `#123`) and external ones (e.g., `https://github.com/org-name/repo/issues/123` or `org-name/repo#123`). Associating a pull request with an issue requires the use of any of the [supported keywords](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) in the pull request's description (e.g., `fixes #123`).|
+| `loose-matching`                  | No | `false`              | Check keyword-prefixed issue references in the PR description on any target branch, without creating GitHub issue links. See [Issue linking](#issue-linking). |
 | `skip-linked-issues-check-label` | No | `no-issue` | A label that causes the action to execute but skip the actual linked issues check. If the check is skipped, the `check_skipped` output is set to `true`. Any present comments added by this action are also deleted. Useful when incorporating this action into multi-action workflows.|
 
 ## Outputs
 
 | output                | description                                                      |
 |-----------------------|------------------------------------------------------------------|
-| `linked_issues_count` | The total number of issues linked to your pull request.          |
-| `issues`              | A stringified array containing the numbers of the linked issues, of the form ["some/repo#123", "another/repository#456"] |
+| `linked_issues_count` | The number of GitHub-linked issues, or validated PR description references when `loose-matching` is enabled. |
+| `issues`              | A stringified array of those issues, of the form ["some/repo#123", "another/repository#456"]. Loose matches are not necessarily linked on GitHub. |
 | `check_skipped`       | Will be set to `true` if the linked issues check was skipped. |
+
+## Issue linking
+
+This action checks for issues; it does not create or update issue links or add items to GitHub Projects.
+
+By default, the action reads GitHub's `closingIssuesReferences`, including issues linked using closing keywords or manually through the sidebar. For automatic linking, use a [supported closing keyword](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) in the PR description, such as `Fixes #123` or `Closes owner/repo#456`.
+
+GitHub interprets these keywords only when the PR targets the repository's **default branch**. Merging that PR into the default branch closes the linked issues. For PRs targeting another branch, GitHub ignores the keywords: no keyword-based link is created, and merging the PR does not close the referenced issues.
+
+With `loose-matching: true`, the action instead parses the PR description and checks that the referenced issues are accessible through the GitHub API, regardless of the target branch. Each reference still needs a supported closing keyword, for example `Fixes #123`, `Fixes owner/repo#456`, or `Fixes https://github.com/owner/repo/issues/456`; a bare `#123` is not enough. This mode does not count sidebar-only links.
+
+A successful loose-matching check does not create a GitHub link or override GitHub's default-branch requirement. Its outputs report matching references, not proof that GitHub has linked the issues.
 
 ## Standard Usage
 
@@ -127,24 +139,9 @@ jobs:
 
 ## Limitations ⚠️
 
-Currently **you must link issues from the pull request description**.
+Prefer closing keywords in the PR description so that edits trigger the example workflow. GitHub also supports [manual sidebar links](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue#manually-linking-a-pull-request-to-an-issue-using-the-pull-request-sidebar), which the default check can read on its next run. Adding a sidebar link alone does not trigger the workflow shown above; rerun the check or trigger another configured PR event.
 
-_See the [docs](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) for more information about the supported syntax._
-
-### Why?
-
-When you manually link up issues from the sidebar on the github.com UI, the workflow doesn't trigger. On the other hand, if you link up issues from your commits, then the PR doesn't get linked on your _Projects_ board.
-
-This is a GitHub limitation. This table shows what happens:
-
-| Linked from:    | Workflow triggered? | Query works? | Appears on Projects? |
-| --------------- | ------------------- | ------------ | -------------------- |
-| Sidebar UI      | ❌ | ✅ | ✅ |
-| Commit message  | ✅ | ❌ | ❌ |
-| PR description  | ✅ | ✅ | ✅ |
-
-
-Please **DO NOT** link issues manually from the sidebar, neither from commit messages.
+Closing keywords in commit messages can close issues when the commits reach the default branch, but GitHub does not list the containing PR as linked. This action does not scan commit messages. See [GitHub's linking documentation](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue) for these distinctions.
 
 ## Referencing issues in another repository
 
