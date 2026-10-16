@@ -4,6 +4,13 @@ updates:
     directory: '/'
     schedule:
       interval: daily
+    groups:
+      eslint:
+        patterns:
+          - 'eslint'
+          - 'eslint-*'
+          - '@eslint/*'
+          - 'globals'
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
