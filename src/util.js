@@ -118,6 +118,7 @@ async function getIssues({ owner, repo, issueIds, octokit }) {
 }
 
 function extractLocalIssues(body) {
+  // Keywords GitHub uses to link a PR to an issue: https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/using-keywords-in-issues-and-pull-requests#linking-a-pull-request-to-an-issue
   const regex =
     /(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)(?:\s*:)?\s+#(\d+)/gim;
   const issues = [];
@@ -133,6 +134,7 @@ function extractLocalIssues(body) {
 }
 
 function extractExternalIssues(body) {
+  // Keywords GitHub uses to link a PR to an issue: https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/using-keywords-in-issues-and-pull-requests#linking-a-pull-request-to-an-issue
   const regex =
     /\b(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)(?:\s*:)?\s+(https?:\/\/github\.com\/)*(([^/]+)\/([^/|#]+)(\/issues\/|#)(\d+))/gim;
   const issues = [];
