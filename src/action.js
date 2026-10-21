@@ -14,6 +14,15 @@ import {
 
 const format = (obj) => JSON.stringify(obj, undefined, 2);
 
+// Escapes HTML-significant characters to prevent injected markup/script
+// from being persisted in comments and later rendered unsafely.
+const escapeHtml = (str) =>
+  str.replace(/[&<>"']/g, (char) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[
+      char
+    ]),
+  );
+
 async function run() {
   toolkit.logActionRefWarning();
   toolkit.logRepoWarning();
@@ -96,7 +105,7 @@ async function run() {
         !linkedIssuesComments.length && core.getBooleanInput("comment") && prId;
 
       if (shouldComment) {
-        const body = core.getInput("custom-body-comment");
+        const body = escapeHtml(core.getInput("custom-body-comment"));
         await addComment({ octokit, prId, body });
 
         core.debug("Comment added");
