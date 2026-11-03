@@ -355,3 +355,175 @@ test.each([["pull_request"], ["pull_request_target"]])(
     expect(core.debug).not.toHaveBeenCalledWith("Comment added");
   },
 );
+
+describe("issue linking semantics", () => {
+  test.each([
+    {
+      scenario: "reads a GitHub-reported link without a body reference",
+      looseMatching: false,
+      body: "",
+      githubLinked: true,
+      accessible: true,
+      expectedCount: 1,
+      expectedLookups: 0,
+    },
+    {
+      scenario: "fails without a GitHub link despite a closing keyword",
+      looseMatching: false,
+      body: "Fixes #123",
+      githubLinked: false,
+      accessible: true,
+      expectedCount: 0,
+      expectedLookups: 0,
+    },
+    {
+      scenario: "accepts a local loose match without a GitHub link",
+      looseMatching: true,
+      body: "Fixes: #123",
+      githubLinked: false,
+      accessible: true,
+      expectedCount: 1,
+      expectedLookups: 1,
+    },
+    {
+      scenario: "accepts a qualified loose match without a GitHub link",
+      looseMatching: true,
+      body: `Closes ${ORG_NAME}/${REPO_NAME}#123`,
+      githubLinked: false,
+      accessible: true,
+      expectedCount: 1,
+      expectedLookups: 1,
+    },
+    {
+      scenario: "accepts a URL loose match without a GitHub link",
+      looseMatching: true,
+      body: `Resolves https://github.com/${ORG_NAME}/${REPO_NAME}/issues/123`,
+      githubLinked: false,
+      accessible: true,
+      expectedCount: 1,
+      expectedLookups: 1,
+    },
+    {
+      scenario: "rejects bare references in loose mode",
+      looseMatching: true,
+      body: `#123 ${ORG_NAME}/${REPO_NAME}#123 https://github.com/${ORG_NAME}/${REPO_NAME}/issues/123`,
+      githubLinked: false,
+      accessible: true,
+      expectedCount: 0,
+      expectedLookups: 0,
+    },
+    {
+      scenario: "ignores sidebar-only links in loose mode",
+      looseMatching: true,
+      body: "",
+      githubLinked: true,
+      accessible: true,
+      expectedCount: 0,
+      expectedLookups: 0,
+    },
+    {
+      scenario: "rejects inaccessible loose matches",
+      looseMatching: true,
+      body: "Fixes #123",
+      githubLinked: false,
+      accessible: false,
+      expectedCount: 0,
+      expectedLookups: 1,
+    },
+  ])(
+    "$scenario on a non-default target branch without creating links",
+    async ({
+      looseMatching,
+      body,
+      githubLinked,
+      accessible,
+      expectedCount,
+      expectedLookups,
+    }) => {
+      Object.assign(github.context, {
+        eventName: "pull_request",
+        payload: {
+          number: 456,
+          repository: {
+            name: REPO_NAME,
+            owner: { login: ORG_NAME },
+            default_branch: "main",
+          },
+          pull_request: { base: { ref: "release" } },
+        },
+      });
+      core.getBooleanInput.mockImplementation(
+        (input) => input === "loose-matching" && looseMatching,
+      );
+
+      const octokit = {
+        graphql: jest.fn().mockResolvedValue({
+          repository: {
+            pullRequest: {
+              id: "fake-pr-id",
+              body,
+              closingIssuesReferences: {
+                totalCount: githubLinked ? 1 : 0,
+                nodes: githubLinked
+                  ? [
+                      {
+                        number: 123,
+                        repository: {
+                          nameWithOwner: `${ORG_NAME}/${REPO_NAME}`,
+                        },
+                      },
+                    ]
+                  : [],
+              },
+            },
+          },
+        }),
+        paginate: jest.fn().mockResolvedValue([]),
+        rest: { issues: { get: jest.fn() } },
+      };
+      if (accessible) {
+        octokit.rest.issues.get.mockResolvedValue({ data: { number: 123 } });
+      } else {
+        octokit.rest.issues.get.mockRejectedValue(new Error("Not Found"));
+      }
+      github.getOctokit.mockReturnValueOnce(octokit);
+
+      await run();
+
+      expect(core.setOutput).toHaveBeenCalledWith(
+        "linked_issues_count",
+        expectedCount,
+      );
+      expect(core.setOutput).toHaveBeenCalledWith(
+        "issues",
+        expectedCount ? [`${ORG_NAME}/${REPO_NAME}#123`] : [],
+      );
+      expect(core.setFailed.mock.calls).toEqual(
+        expectedCount ? [] : [[ERROR_MESSAGE]],
+      );
+      expect(octokit.graphql).toHaveBeenCalledTimes(1);
+      expect(octokit.graphql).toHaveBeenCalledWith(
+        expect.stringMatching(/^\s*query getLinkedIssues/),
+        { owner: ORG_NAME, name: REPO_NAME, number: 456 },
+      );
+      expect(octokit.paginate).toHaveBeenCalledTimes(1);
+      expect(octokit.paginate).toHaveBeenCalledWith(
+        "GET /repos/{owner}/{repo}/issues/{prNumber}/comments",
+        { owner: ORG_NAME, repo: REPO_NAME, prNumber: 456 },
+      );
+      expect(octokit.rest.issues.get.mock.calls).toEqual(
+        expectedLookups
+          ? [
+              [
+                {
+                  owner: ORG_NAME,
+                  repo: REPO_NAME,
+                  issue_number: "123",
+                },
+              ],
+            ]
+          : [],
+      );
+    },
+  );
+});
